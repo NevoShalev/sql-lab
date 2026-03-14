@@ -96,11 +96,11 @@ function computeAggregate(
       }
       case "MIN":
         value = valueField
-          ? String(gr.map((r) => r[valueField]).reduce((a, b) => (a !== undefined && b !== undefined && a < b ? a : b)) ?? "")
+          ? String(gr.map((r) => r[valueField]).filter((v) => v != null).reduce((a, b) => (a < b ? a : b)) ?? "")
           : ""; break;
       case "MAX":
         value = valueField
-          ? String(gr.map((r) => r[valueField]).reduce((a, b) => (a !== undefined && b !== undefined && a > b ? a : b)) ?? "")
+          ? String(gr.map((r) => r[valueField]).filter((v) => v != null).reduce((a, b) => (a > b ? a : b)) ?? "")
           : ""; break;
     }
     result.push({ group, value });
