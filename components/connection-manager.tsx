@@ -215,7 +215,6 @@ export function ConnectionManager({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Link className="h-4 w-4" />
               New Connection
             </DialogTitle>
             <DialogDescription>
@@ -266,26 +265,24 @@ export function ConnectionManager({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="user" className="text-xs">Username</Label>
-                <Input
-                  id="user"
-                  value={form.user}
-                  onChange={(e) => setForm({ ...form, user: e.target.value })}
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="password" className="text-xs">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="h-8 text-sm"
-                />
-              </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="user" className="text-xs">Username</Label>
+              <Input
+                id="user"
+                value={form.user}
+                onChange={(e) => setForm({ ...form, user: e.target.value })}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="password" className="text-xs">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="h-8 text-sm"
+              />
             </div>
 
             <div className="flex items-center gap-2">
