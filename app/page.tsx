@@ -493,7 +493,7 @@ export default function Home() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex flex-col h-screen overflow-hidden pb-[env(safe-area-inset-bottom)]">
+      <div className="flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]" style={{ height: "100dvh" }}>
         {/* Header */}
         <header className="flex items-center h-10 border-b border-border bg-card/80 backdrop-blur shrink-0">
           {/* Sidebar toggle */}
