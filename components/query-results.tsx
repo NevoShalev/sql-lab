@@ -242,6 +242,7 @@ interface QueryResultsProps {
   onApplyFix?: (sql: string) => void;
 }
 
+
 export function QueryResults({ result, isRunning, schema, onApplyFix }: QueryResultsProps) {
   const [sort, setSort] = useState<SortState>(null);
   const [page, setPage] = useState(0);

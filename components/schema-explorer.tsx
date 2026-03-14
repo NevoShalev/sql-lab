@@ -77,7 +77,7 @@ function TableNode({
   return (
     <div className="select-none">
       <div
-        className="flex items-center gap-1 px-2 py-1 rounded-sm cursor-pointer hover:bg-accent group"
+        className="flex items-center gap-1 px-2 py-1 rounded-sm cursor-pointer hover:bg-accent group overflow-hidden"
         onClick={() => setOpen(!open)}
       >
         <ChevronRight
@@ -119,7 +119,7 @@ function TableNode({
           {table.columns.map((col) => (
             <div
               key={col.name}
-              className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-accent/50 rounded-sm group/col"
+              className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-accent/50 rounded-sm group/col overflow-hidden"
             >
               <Columns className="h-2.5 w-2.5 shrink-0 text-muted-foreground/50" />
               <span className="text-xs text-foreground/80 flex-1 truncate font-mono">
@@ -127,9 +127,10 @@ function TableNode({
               </span>
               <span
                 className={cn(
-                  "text-[10px] font-mono shrink-0",
+                  "text-[10px] font-mono truncate max-w-[5rem]",
                   getTypeColor(col.type)
                 )}
+                title={col.type}
               >
                 {shortType(col.type)}
               </span>
