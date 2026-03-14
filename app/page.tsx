@@ -57,11 +57,17 @@ function saveSchemaCache(connectionId: string, schema: SchemaData) {
   try { sessionStorage.setItem(SCHEMA_CACHE_KEY, JSON.stringify({ connectionId, schema })); } catch { /* ignore */ }
 }
 
-function loadResultsCache(): QueryResult | null {
+function loadResultsCache(): Record<string, QueryResult> {
   try {
     const stored = typeof window !== "undefined" ? sessionStorage.getItem(RESULTS_CACHE_KEY) : null;
-    return stored ? JSON.parse(stored) : null;
-  } catch { return null; }
+    if (!stored) return {};
+    const parsed = JSON.parse(stored);
+    // Handle legacy single-result format
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && parsed.id) {
+      return { [_initActiveTabId]: parsed };
+    }
+    return parsed ?? {};
+  } catch { return {}; }
 }
 
 function loadHistoryCache(): QueryResult[] {
@@ -127,7 +133,7 @@ const _initTabs = loadTabs();
 const _initActiveTabId = loadActiveTabId(_initTabs);
 const _initActiveConnectionId = _initTabs.find((t) => t.id === _initActiveTabId)?.connectionId;
 const _initSchemaCache = loadSchemaCache(_initActiveConnectionId);
-const _initResultsCache = loadResultsCache();
+const _initTabResults = loadResultsCache();
 const _initHistoryCache = loadHistoryCache();
 const _initBottomTab = loadBottomTab();
 
@@ -193,17 +199,20 @@ export default function Home() {
   const activeConnectionId = activeTab?.connectionId;
   const activeConnection = connections.find((c) => c.id === activeConnectionId) ?? null;
 
-  // Stable ref so handleRunQuery doesn't recreate on every render
+  // Stable refs so handleRunQuery doesn't recreate on every render
   const activeConnectionRef = useRef<SavedConnection | null>(null);
   activeConnectionRef.current = activeConnection;
+  const activeTabIdRef = useRef(activeTabId);
+  activeTabIdRef.current = activeTabId;
 
   // Schema state — initialized from sessionStorage cache
   const [schema, setSchema] = useState<SchemaData | null>(_initSchemaCache);
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaError, setSchemaError] = useState<string | null>(null);
 
-  // Results state — initialized from sessionStorage cache
-  const [latestResult, setLatestResult] = useState<QueryResult | null>(_initResultsCache);
+  // Results state — per-tab map, initialized from sessionStorage cache
+  const [tabResults, setTabResults] = useState<Record<string, QueryResult>>(_initTabResults);
+  const latestResult = tabResults[activeTabId] ?? null;
   const [history, setHistory] = useState<QueryResult[]>(_initHistoryCache);
   const [bottomTab, setBottomTab] = useState(_initBottomTab);
   const [showAggregate, setShowAggregate] = useState(false);
@@ -238,14 +247,14 @@ export default function Home() {
 
   // Persist results/history/bottomTab to sessionStorage
   useEffect(() => {
-    if (latestResult) {
-      try {
-        // Limit cached rows to avoid exceeding sessionStorage quota
-        const toCache = { ...latestResult, rows: latestResult.rows.slice(0, 200) };
-        sessionStorage.setItem(RESULTS_CACHE_KEY, JSON.stringify(toCache));
-      } catch { /* ignore quota errors */ }
-    }
-  }, [latestResult]);
+    try {
+      const toCache: Record<string, QueryResult> = {};
+      for (const [tabId, result] of Object.entries(tabResults)) {
+        if (result) toCache[tabId] = { ...result, rows: result.rows.slice(0, 200) };
+      }
+      sessionStorage.setItem(RESULTS_CACHE_KEY, JSON.stringify(toCache));
+    } catch { /* ignore quota errors */ }
+  }, [tabResults]);
 
   useEffect(() => {
     try {
@@ -283,17 +292,21 @@ export default function Home() {
   const handleRunQuery = useCallback(
     async (sql: string) => {
       const conn = activeConnectionRef.current;
+      const tabId = activeTabIdRef.current;
       if (!conn) {
-        setLatestResult({
-          id: generateId(),
-          sql,
-          rows: [],
-          fields: [],
-          rowCount: 0,
-          duration: 0,
-          timestamp: new Date(),
-          error: "No database connection. Select a connection in the left panel.",
-        });
+        setTabResults((prev) => ({
+          ...prev,
+          [tabId]: {
+            id: generateId(),
+            sql,
+            rows: [],
+            fields: [],
+            rowCount: 0,
+            duration: 0,
+            timestamp: new Date(),
+            error: "No database connection. Select a connection in the left panel.",
+          },
+        }));
         setBottomTab("results");
         return;
       }
@@ -327,20 +340,23 @@ export default function Home() {
           errorDetail: data.detail,
           errorHint: data.hint,
         };
-        setLatestResult(result);
+        setTabResults((prev) => ({ ...prev, [tabId]: result }));
         setHistory((prev) => [result, ...prev].slice(0, 200));
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
-          setLatestResult({
-            id: generateId(),
-            sql,
-            rows: [],
-            fields: [],
-            rowCount: 0,
-            duration: 0,
-            timestamp: new Date(),
-            error: "Query cancelled.",
-          });
+          setTabResults((prev) => ({
+            ...prev,
+            [tabId]: {
+              id: generateId(),
+              sql,
+              rows: [],
+              fields: [],
+              rowCount: 0,
+              duration: 0,
+              timestamp: new Date(),
+              error: "Query cancelled.",
+            },
+          }));
         } else {
           const result: QueryResult = {
             id: generateId(),
@@ -352,7 +368,7 @@ export default function Home() {
             timestamp: new Date(),
             error: "Network error — could not reach the server",
           };
-          setLatestResult(result);
+          setTabResults((prev) => ({ ...prev, [tabId]: result }));
           setHistory((prev) => [result, ...prev]);
         }
       } finally {
@@ -360,7 +376,7 @@ export default function Home() {
         setIsRunning(false);
       }
     },
-    [] // stable — reads conn via ref at call time
+    [] // stable — reads conn and tabId via refs at call time
   );
 
   const handleTableClick = useCallback(
@@ -391,6 +407,11 @@ export default function Home() {
     if (activeTabId === id) {
       setActiveTabId(remaining[remaining.length - 1].id);
     }
+    setTabResults((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   };
 
   const handleSqlChange = useCallback((sql: string) => {
