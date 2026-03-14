@@ -5,8 +5,14 @@ import {
   ChevronRight,
   Table2,
   Eye,
-  Columns,
   AlertCircle,
+  Hash,
+  Type,
+  ToggleLeft,
+  Clock,
+  Fingerprint,
+  Braces,
+  Binary,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -21,43 +27,32 @@ interface SchemaExplorerProps {
   onTableClick: (schema: string, table: string) => void;
 }
 
-const TYPE_COLORS: Record<string, string> = {
-  integer: "text-blue-400",
-  bigint: "text-blue-400",
-  smallint: "text-blue-400",
-  numeric: "text-blue-400",
-  decimal: "text-blue-400",
-  real: "text-blue-400",
-  "double precision": "text-blue-400",
-  text: "text-green-400",
-  varchar: "text-green-400",
-  "character varying": "text-green-400",
-  char: "text-green-400",
-  boolean: "text-yellow-400",
-  bool: "text-yellow-400",
-  timestamp: "text-purple-400",
-  "timestamp without time zone": "text-purple-400",
-  "timestamp with time zone": "text-purple-400",
-  date: "text-purple-400",
-  time: "text-purple-400",
-  uuid: "text-orange-400",
-  json: "text-pink-400",
-  jsonb: "text-pink-400",
-  bytea: "text-red-400",
+type TypeInfo = { icon: React.ComponentType<{ className?: string }>; color: string };
+
+const NUMERIC_TYPE: TypeInfo = { icon: Hash, color: "text-blue-400" };
+const TEXT_TYPE: TypeInfo = { icon: Type, color: "text-green-400" };
+const BOOL_TYPE: TypeInfo = { icon: ToggleLeft, color: "text-yellow-400" };
+const TIME_TYPE: TypeInfo = { icon: Clock, color: "text-purple-400" };
+const UUID_TYPE: TypeInfo = { icon: Fingerprint, color: "text-orange-400" };
+const JSON_TYPE: TypeInfo = { icon: Braces, color: "text-pink-400" };
+const BINARY_TYPE: TypeInfo = { icon: Binary, color: "text-red-400" };
+const DEFAULT_TYPE: TypeInfo = { icon: Hash, color: "text-muted-foreground" };
+
+const TYPE_MAP: Record<string, TypeInfo> = {
+  integer: NUMERIC_TYPE, bigint: NUMERIC_TYPE, smallint: NUMERIC_TYPE,
+  numeric: NUMERIC_TYPE, decimal: NUMERIC_TYPE, real: NUMERIC_TYPE,
+  "double precision": NUMERIC_TYPE,
+  text: TEXT_TYPE, varchar: TEXT_TYPE, "character varying": TEXT_TYPE, char: TEXT_TYPE,
+  boolean: BOOL_TYPE, bool: BOOL_TYPE,
+  timestamp: TIME_TYPE, "timestamp without time zone": TIME_TYPE,
+  "timestamp with time zone": TIME_TYPE, date: TIME_TYPE, time: TIME_TYPE,
+  uuid: UUID_TYPE,
+  json: JSON_TYPE, jsonb: JSON_TYPE,
+  bytea: BINARY_TYPE,
 };
 
-function getTypeColor(type: string): string {
-  return TYPE_COLORS[type.toLowerCase()] ?? "text-muted-foreground";
-}
-
-function shortType(type: string): string {
-  const map: Record<string, string> = {
-    "character varying": "varchar",
-    "timestamp without time zone": "timestamp",
-    "timestamp with time zone": "timestamptz",
-    "double precision": "float8",
-  };
-  return map[type.toLowerCase()] ?? type;
+function getTypeInfo(type: string): TypeInfo {
+  return TYPE_MAP[type.toLowerCase()] ?? DEFAULT_TYPE;
 }
 
 function TableNode({
@@ -115,30 +110,20 @@ function TableNode({
       </div>
 
       {open && table.columns.length > 0 && (
-        <div className="ml-5 border-l border-border/50">
+        <div className="ml-5 border-l border-border/50 min-w-0 overflow-hidden">
           {table.columns.map((col) => (
             <div
               key={col.name}
               className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-accent/50 rounded-sm group/col overflow-hidden"
             >
-              <Columns className="h-2.5 w-2.5 shrink-0 text-muted-foreground/50" />
-              <span className="text-xs text-foreground/80 flex-1 truncate font-mono">
+              {(() => {
+                const typeInfo = getTypeInfo(col.type);
+                const TypeIcon = typeInfo.icon;
+                return <TypeIcon className={cn("h-3 w-3 shrink-0", typeInfo.color)} />;
+              })()}
+              <span className="text-xs text-foreground/80 flex-1 truncate font-mono min-w-0" title={col.type}>
                 {col.name}
               </span>
-              <span
-                className={cn(
-                  "text-[10px] font-mono truncate max-w-[5rem]",
-                  getTypeColor(col.type)
-                )}
-                title={col.type}
-              >
-                {shortType(col.type)}
-              </span>
-              {!col.nullable && (
-                <span className="text-[9px] text-red-400 opacity-0 group-hover/col:opacity-100">
-                  !null
-                </span>
-              )}
             </div>
           ))}
         </div>
@@ -170,7 +155,7 @@ export function SchemaExplorer({
   return (
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-1">
-        <div className="p-2">
+        <div className="p-2 overflow-hidden">
           {error && (
             <div className="flex items-start gap-2 p-2 rounded-md bg-destructive/10 text-destructive text-xs">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
@@ -210,7 +195,7 @@ export function SchemaExplorer({
                   </div>
 
                   {isExpanded && (
-                    <div className="ml-2">
+                    <div className="ml-2 overflow-hidden">
                       {Object.entries(tables).map(([tableName, table]) => (
                         <TableNode
                           key={tableName}
