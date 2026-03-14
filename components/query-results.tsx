@@ -287,12 +287,12 @@ function isFilterActive(f: ActiveFilter): boolean {
 
 const OPS_BY_KIND: Record<ColKind, { op: FilterOp; label: string }[]> = {
   text: [
+    { op: "equals",       label: "Equals" },
+    { op: "not_equals",   label: "Not equals" },
     { op: "contains",     label: "Contains" },
     { op: "not_contains", label: "Does not contain" },
     { op: "starts_with",  label: "Starts with" },
     { op: "ends_with",    label: "Ends with" },
-    { op: "equals",       label: "Equals" },
-    { op: "not_equals",   label: "Not equals" },
     { op: "is_empty",     label: "Is empty" },
     { op: "is_not_empty", label: "Is not empty" },
     { op: "is_null",      label: "Is null" },
@@ -331,7 +331,7 @@ const OPS_BY_KIND: Record<ColKind, { op: FilterOp; label: string }[]> = {
 };
 
 const DEFAULT_OP: Record<ColKind, FilterOp> = {
-  text:    "contains",
+  text:    "equals",
   number:  "eq",
   date:    "after",
   boolean: "bool_true",
@@ -398,11 +398,13 @@ function ColumnFilterPopover({
   dataTypeID,
   filter,
   onFilterChange,
+  rows,
 }: {
   field: string;
   dataTypeID: number;
   filter: ActiveFilter | undefined;
   onFilterChange: (f: ActiveFilter | null) => void;
+  rows: Record<string, unknown>[];
 }) {
   const [open, setOpen]           = useState(false);
   const [selectOpen, setSelectOpen] = useState(false);
@@ -418,6 +420,16 @@ function ColumnFilterPopover({
   const needsValue = !NO_VALUE_OPS.has(currentOp);
   const needsTwo   = currentOp === "between" || currentOp === "date_between";
   const inputType  = kind === "number" ? "number" : kind === "date" ? "date" : "text";
+
+  // Distinct values for text equals/not_equals dropdown
+  const showDistinctSelect =
+    kind === "text" && (currentOp === "equals" || currentOp === "not_equals");
+  const distinctValues = useMemo(() => {
+    if (!showDistinctSelect) return [];
+    return [...new Set(
+      rows.map((r) => formatCellValue(r[field])).filter((v) => v !== "")
+    )].sort();
+  }, [showDistinctSelect, rows, field]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close popover on outside click — but not while the Select dropdown is open
   useEffect(() => {
@@ -440,7 +452,7 @@ function ColumnFilterPopover({
   const inputCls = "block w-full h-7 text-xs bg-muted/40 border border-border rounded px-2 focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/40";
 
   return (
-    <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
+    <div ref={ref} onClick={(e) => e.stopPropagation()}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
         title={isActive ? "Filter active" : `Filter ${field}`}
@@ -479,15 +491,34 @@ function ColumnFilterPopover({
 
           {/* Primary value */}
           {needsValue && (
-            <input
-              ref={inputRef}
-              type={inputType}
-              value={curVal}
-              onChange={(e) => set({ value: e.target.value })}
-              onKeyDown={(e) => { if (e.key === "Escape" || e.key === "Enter") setOpen(false); }}
-              placeholder={needsTwo ? "from…" : "value…"}
-              className={inputCls}
-            />
+            showDistinctSelect && distinctValues.length > 0 ? (
+              <Select
+                value={curVal}
+                onValueChange={(val) => set({ value: val })}
+                onOpenChange={setSelectOpen}
+              >
+                <SelectTrigger className="h-7 text-xs px-2">
+                  <SelectValue placeholder="select value…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {distinctValues.map((v) => (
+                    <SelectItem key={v} value={v} className="text-xs">
+                      {v}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <input
+                ref={inputRef}
+                type={inputType}
+                value={curVal}
+                onChange={(e) => set({ value: e.target.value })}
+                onKeyDown={(e) => { if (e.key === "Escape" || e.key === "Enter") setOpen(false); }}
+                placeholder={needsTwo ? "from…" : "value…"}
+                className={inputCls}
+              />
+            )
           )}
 
           {/* Secondary value (between) */}
@@ -669,7 +700,7 @@ export function QueryResults({ result, isRunning, schema, onApplyFix }: QueryRes
                   {result.fields.map((field) => (
                     <th
                       key={field.name}
-                      className="text-left px-3 py-2 border-b border-border font-medium text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground hover:bg-accent/50 transition-colors select-none"
+                      className="relative text-left px-3 py-2 border-b border-border font-medium text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground hover:bg-accent/50 transition-colors select-none"
                       onClick={() => handleSort(field.name)}
                     >
                       <div className="flex items-center gap-1 group">
@@ -687,6 +718,7 @@ export function QueryResults({ result, isRunning, schema, onApplyFix }: QueryRes
                           field={field.name}
                           dataTypeID={field.dataTypeID}
                           filter={filters[field.name]}
+                          rows={result.rows}
                           onFilterChange={(f) => {
                             setFilters((prev) => {
                               if (!f) { const next = { ...prev }; delete next[field.name]; return next; }

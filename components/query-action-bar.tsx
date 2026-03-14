@@ -11,6 +11,7 @@ import {
   Table2,
   BarChart3,
   PieChart,
+  Clock,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -126,7 +127,7 @@ export function QueryActionBar({
       )}
 
       {/* ── Tab group: Results | History ── */}
-      <div className="flex items-center bg-muted/50 rounded-lg px-0.5 gap-0.5">
+      <div className="flex items-center bg-muted/50 rounded-lg px-0.5 py-0.5 gap-0.5">
         {(["results", "history"] as const).map((tab) => {
           const badge =
             tab === "results"
@@ -147,7 +148,18 @@ export function QueryActionBar({
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {tab === "results" ? "Results" : "History"}
+              {/* Mobile unselected: icon only */}
+              {bottomTab !== tab && (
+                <span className="sm:hidden">
+                  {tab === "results"
+                    ? <Table2 className="h-3.5 w-3.5" />
+                    : <Clock className="h-3.5 w-3.5" />}
+                </span>
+              )}
+              {/* Text: always on desktop, only when selected on mobile */}
+              <span className={cn(bottomTab !== tab && "hidden sm:inline")}>
+                {tab === "results" ? "Results" : "History"}
+              </span>
               {badge !== null && (
                 <span
                   className={cn(
