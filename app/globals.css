@@ -76,6 +76,13 @@
   background: hsl(var(--muted-foreground));
 }
 
+/* Hide Monaco's floating keyboard button on mobile */
+@media (pointer: coarse) {
+  .monaco-editor .iPadShowKeyboard {
+    display: none !important;
+  }
+}
+
 /* Monaco editor — dark theme background override */
 .monaco-editor-container {
   border-radius: 0;
