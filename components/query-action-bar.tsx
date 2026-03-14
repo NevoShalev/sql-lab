@@ -152,15 +152,16 @@ export function QueryActionBar({
                 key={tab}
                 onClick={() => onBottomTabChange(tab)}
                 className={cn(
-                  "h-7 w-7 rounded-md flex items-center justify-center transition-all",
+                  "h-7 rounded-md flex items-center justify-center gap-1 transition-all",
+                  badge !== null ? "px-2" : "w-7",
                   bottomTab === tab
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-3.5 w-3.5 shrink-0" />
                 {badge !== null && (
-                  <span className="sr-only">{badge}</span>
+                  <span className="text-[10px] leading-none tabular-nums">{badge}</span>
                 )}
               </button>
             ))
