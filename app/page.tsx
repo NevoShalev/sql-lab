@@ -24,17 +24,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 const STORAGE_KEY = "sql-lab-connections";
 const TABS_STORAGE_KEY = "sql-lab-tabs";
 const ACTIVE_TAB_STORAGE_KEY = "sql-lab-active-tab";
-const PANEL_SIZES_KEY = "sql-lab-panel-sizes";
 const SIDEBAR_COLLAPSED_KEY = "sql-lab-sidebar-collapsed";
-
-function loadPanelSizes(): { horizontal: number[]; vertical: number[] } | null {
-  try {
-    const stored = typeof window !== "undefined" ? localStorage.getItem(PANEL_SIZES_KEY) : null;
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-}
 
 function loadSidebarCollapsed(): boolean {
   try {
@@ -44,7 +34,6 @@ function loadSidebarCollapsed(): boolean {
   }
 }
 
-const _initPanelSizes = loadPanelSizes();
 const _initSidebarCollapsed = loadSidebarCollapsed();
 
 // Session-level caches (survive HMR / soft reloads)
@@ -598,20 +587,14 @@ export default function Home() {
         <ResizablePanelGroup
           direction="horizontal"
           className="flex-1 min-h-0"
-          onLayout={(sizes) => {
-            // Only save horizontal sizes when sidebar is expanded (not collapsed to 0)
-            if (sizes[0] > 0) {
-              const current = JSON.parse(localStorage.getItem(PANEL_SIZES_KEY) || "{}");
-              localStorage.setItem(PANEL_SIZES_KEY, JSON.stringify({ ...current, horizontal: sizes }));
-            }
-          }}
+          autoSaveId="sql-lab-horizontal"
         >
           {/* Left: Connection (per-tab) + Schema — hidden on mobile */}
           {!isMobile && (
             <>
               <ResizablePanel
                 ref={sidebarRef}
-                defaultSize={_initPanelSizes?.horizontal?.[0] ?? 18}
+                defaultSize={18}
                 minSize={12}
                 maxSize={35}
                 collapsible
@@ -660,16 +643,13 @@ export default function Home() {
           )}
 
           {/* Right: Editor + Results */}
-          <ResizablePanel defaultSize={isMobile ? 100 : (_initPanelSizes?.horizontal?.[1] ?? 82)} minSize={50}>
+          <ResizablePanel defaultSize={isMobile ? 100 : 82} minSize={50}>
             <ResizablePanelGroup
               direction="vertical"
-              onLayout={(sizes) => {
-                const current = JSON.parse(localStorage.getItem(PANEL_SIZES_KEY) || "{}");
-                localStorage.setItem(PANEL_SIZES_KEY, JSON.stringify({ ...current, vertical: sizes }));
-              }}
+              autoSaveId="sql-lab-vertical"
             >
               {/* Editor */}
-              <ResizablePanel defaultSize={_initPanelSizes?.vertical?.[0] ?? 55} minSize={25}>
+              <ResizablePanel defaultSize={55} minSize={25}>
                 <SqlEditor
                   sql={activeTab?.sql ?? ""}
                   isRunning={isRunning}
@@ -682,7 +662,7 @@ export default function Home() {
               <ResizableHandle withHandle />
 
               {/* Results */}
-              <ResizablePanel defaultSize={_initPanelSizes?.vertical?.[1] ?? 45} minSize={20}>
+              <ResizablePanel defaultSize={45} minSize={20}>
                 <div className="flex flex-col h-full bg-card/20">
                   <QueryActionBar
                     isRunning={isRunning}

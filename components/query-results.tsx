@@ -192,7 +192,7 @@ function AiErrorSuggestion({
       <div className="flex items-start gap-3">
         <Sparkles className="h-4 w-4 text-violet-400 shrink-0 mt-0.5" />
         <div className="space-y-2 min-w-0 flex-1">
-          <p className="text-xs font-medium text-violet-400">AI Analysis</p>
+          <p className="text-xs font-medium text-violet-400">AI Error Assist</p>
           {analysis.explanation && (
             <p className="text-sm text-foreground/90">{analysis.explanation}</p>
           )}
@@ -303,11 +303,11 @@ export function QueryResults({ result, isRunning, schema, onApplyFix }: QueryRes
 
     return (
       <div className="p-4 space-y-3 overflow-auto h-full">
-        {/* Error message */}
-        <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-          <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+        {/* Error message + location */}
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+          <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
           <div className="space-y-2 min-w-0 flex-1">
-            <p className="text-sm font-medium text-destructive">Query Error</p>
+            <p className="text-xs font-medium text-destructive">Query Error</p>
             <p className="text-sm text-foreground/80 font-mono">{result.error}</p>
             {result.errorDetail && (
               <p className="text-xs text-muted-foreground font-mono">Detail: {result.errorDetail}</p>
@@ -315,22 +315,20 @@ export function QueryResults({ result, isRunning, schema, onApplyFix }: QueryRes
             {result.errorHint && (
               <p className="text-xs text-muted-foreground font-mono">Hint: {result.errorHint}</p>
             )}
+            {context && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  Line {context.line}, column {context.col}:
+                </p>
+                <pre className="text-xs font-mono overflow-x-auto whitespace-pre bg-card/80 rounded p-2 border border-border">
+                  <span className="text-foreground/60">{context.before}</span>
+                  <span className="text-destructive bg-destructive/20 rounded px-0.5 font-bold">{context.errorChar}</span>
+                  <span className="text-foreground/60">{context.after}</span>
+                </pre>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Error location in SQL */}
-        {context && (
-          <div className="rounded-lg bg-card/60 border border-border p-3 space-y-1.5">
-            <p className="text-xs text-muted-foreground">
-              Error at line {context.line}, column {context.col}:
-            </p>
-            <pre className="text-xs font-mono overflow-x-auto whitespace-pre">
-              <span className="text-foreground/60">{context.before}</span>
-              <span className="text-destructive bg-destructive/20 rounded px-0.5 font-bold">{context.errorChar}</span>
-              <span className="text-foreground/60">{context.after}</span>
-            </pre>
-          </div>
-        )}
 
         {/* AI-powered suggestion */}
         <AiErrorSuggestion
