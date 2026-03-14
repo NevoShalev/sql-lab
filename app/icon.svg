@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Dark rounded background -->
+  <rect width="32" height="32" rx="7" fill="#141414"/>
+
+  <!-- Terminal caret > -->
+  <path d="M6 10 L15 16 L6 22"
+        stroke="#35c785" stroke-width="3"
+        stroke-linecap="round" stroke-linejoin="round"
+        fill="none"/>
+
+  <!-- Cursor _ -->
+  <line x1="17" y1="22" x2="26" y2="22"
+        stroke="#35c785" stroke-width="3"
+        stroke-linecap="round"/>
+</svg>
