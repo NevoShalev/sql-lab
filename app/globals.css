@@ -4,6 +4,29 @@
 
 @layer base {
   :root {
+    --background: 0 0% 98%;
+    --foreground: 0 0% 9%;
+    --card: 0 0% 96%;
+    --card-foreground: 0 0% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
+    --primary: 153 60% 36%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 92%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 42%;
+    --accent: 0 0% 88%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 84%;
+    --input: 0 0% 92%;
+    --ring: 153 60% 36%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
     --background: 0 0% 8%;
     --foreground: 0 0% 93%;
     --card: 0 0% 9%;
@@ -37,7 +60,7 @@
   }
 }
 
-/* Custom scrollbar for dark theme */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -53,14 +76,14 @@
   background: hsl(var(--muted-foreground));
 }
 
-/* Monaco editor – match app dark theme */
+/* Monaco editor — dark theme background override */
 .monaco-editor-container {
   border-radius: 0;
   overflow: visible;
 }
-.monaco-editor,
-.monaco-editor .margin,
-.monaco-editor .monaco-editor-background {
+.dark .monaco-editor,
+.dark .monaco-editor .margin,
+.dark .monaco-editor .monaco-editor-background {
   background-color: rgba(20, 20, 20, 1) !important;
 }
 

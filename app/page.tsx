@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { RefreshCw, Loader2, Plus, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { useTheme } from "next-themes";
+import { RefreshCw, Loader2, Plus, X, PanelLeftClose, PanelLeftOpen, Sun, Moon, Monitor } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   ResizablePanelGroup,
@@ -10,6 +11,12 @@ import {
 } from "@/components/ui/resizable";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ConnectionManager } from "@/components/connection-manager";
 import { SchemaExplorer } from "@/components/schema-explorer";
 import { SqlEditor } from "@/components/sql-editor";
@@ -163,6 +170,7 @@ export default function Home() {
   const sidebarRef = useRef<ImperativePanelHandle>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(_initSidebarCollapsed);
   const isMobile = useIsMobile();
+  const { theme, setTheme } = useTheme();
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
   // Collapse sidebar on mount if it was saved as collapsed
@@ -579,6 +587,36 @@ export default function Home() {
               <TooltipContent>New tab</TooltipContent>
             </Tooltip>
           </div>
+
+          {/* Theme toggle */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 mx-1 shrink-0 self-center text-muted-foreground hover:text-foreground"
+              >
+                {theme === "light" ? (
+                  <Sun className="h-3.5 w-3.5" />
+                ) : theme === "dark" ? (
+                  <Moon className="h-3.5 w-3.5" />
+                ) : (
+                  <Monitor className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setTheme("light")} className={cn("text-xs gap-2", theme === "light" && "bg-accent")}>
+                <Sun className="h-3.5 w-3.5" /> Light
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("dark")} className={cn("text-xs gap-2", theme === "dark" && "bg-accent")}>
+                <Moon className="h-3.5 w-3.5" /> Dark
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("system")} className={cn("text-xs gap-2", theme === "system" && "bg-accent")}>
+                <Monitor className="h-3.5 w-3.5" /> System
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
         </header>
 

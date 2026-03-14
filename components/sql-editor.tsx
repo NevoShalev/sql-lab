@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useCallback, useEffect, memo } from "react";
+import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 import type { SchemaData } from "@/lib/types";
@@ -15,7 +16,8 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ),
 });
 
-const EDITOR_THEME = "sql-lab-dark";
+const EDITOR_THEME_DARK = "sql-lab-dark";
+const EDITOR_THEME_LIGHT = "sql-lab-light";
 
 // Module-level ref so the completion provider always reads current schema
 let _schemaRef: SchemaData | null = null;
@@ -203,7 +205,7 @@ function registerCompletionProvider(monaco: any) {
 }
 
 function defineSqlLabDarkTheme(monaco: { editor: { defineTheme: (name: string, data: unknown) => void } }) {
-  monaco.editor.defineTheme(EDITOR_THEME, {
+  monaco.editor.defineTheme(EDITOR_THEME_DARK, {
     base: "vs-dark",
     inherit: true,
     rules: [
@@ -243,6 +245,47 @@ function defineSqlLabDarkTheme(monaco: { editor: { defineTheme: (name: string, d
   });
 }
 
+function defineSqlLabLightTheme(monaco: { editor: { defineTheme: (name: string, data: unknown) => void } }) {
+  monaco.editor.defineTheme(EDITOR_THEME_LIGHT, {
+    base: "vs",
+    inherit: true,
+    rules: [
+      { token: "keyword",           foreground: "0000aa", fontStyle: "bold" },
+      { token: "keyword.sql",       foreground: "0000aa", fontStyle: "bold" },
+      { token: "operator.sql",      foreground: "0000aa" },
+      { token: "string",            foreground: "a31515" },
+      { token: "string.sql",        foreground: "a31515" },
+      { token: "string.escape.sql", foreground: "795e26" },
+      { token: "comment",           foreground: "008000", fontStyle: "italic" },
+      { token: "comment.sql",       foreground: "008000", fontStyle: "italic" },
+      { token: "number",            foreground: "098658" },
+      { token: "number.sql",        foreground: "098658" },
+      { token: "predefined",        foreground: "267f99" },
+      { token: "predefined.sql",    foreground: "267f99" },
+      { token: "type",              foreground: "267f99" },
+      { token: "delimiter",         foreground: "666666" },
+      { token: "identifier",        foreground: "1e1e1e" },
+    ],
+    colors: {
+      "editor.background": "#f9f9f9",
+      "editor.foreground": "#1e1e1e",
+      "editorLineNumber.foreground": "#c0c0c0",
+      "editorLineNumber.activeForeground": "#777777",
+      "editorCursor.foreground": "#1e1e1e",
+      "editor.selectionBackground": "#add6ff",
+      "editor.inactiveSelectionBackground": "#e5ebf1",
+      "editor.lineHighlightBackground": "#f2f2f2",
+      "editorWidget.background": "#f9f9f9",
+      "editorWidget.border": "#dddddd",
+      "editorIndentGuide.background1": "#dddddd",
+      "editorIndentGuide.activeBackground1": "#aaaaaa",
+      "editorSuggestWidget.background": "#f9f9f9",
+      "editorSuggestWidget.border": "#dddddd",
+      "editorSuggestWidget.selectedBackground": "#cce5ff",
+    },
+  });
+}
+
 interface SqlEditorProps {
   sql: string;
   isRunning: boolean;
@@ -253,6 +296,8 @@ interface SqlEditorProps {
 
 export const SqlEditor = memo(function SqlEditor({ sql, isRunning, schema, onSqlChange, onRunQuery }: SqlEditorProps) {
   const editorRef = useRef<unknown>(null);
+  const { resolvedTheme } = useTheme();
+  const editorTheme = resolvedTheme === "light" ? EDITOR_THEME_LIGHT : EDITOR_THEME_DARK;
 
   // Keep module-level schema ref in sync
   useEffect(() => {
@@ -270,6 +315,7 @@ export const SqlEditor = memo(function SqlEditor({ sql, isRunning, schema, onSql
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleBeforeMount = useCallback((monaco: any) => {
     defineSqlLabDarkTheme(monaco);
+    defineSqlLabLightTheme(monaco);
     registerCompletionProvider(monaco);
   }, []);
 
@@ -305,7 +351,7 @@ export const SqlEditor = memo(function SqlEditor({ sql, isRunning, schema, onSql
       <MonacoEditor
         height="100%"
         language="sql"
-        theme={EDITOR_THEME}
+        theme={editorTheme}
         value={sql}
         onChange={(value) => onSqlChange(value ?? "")}
         beforeMount={handleBeforeMount}
