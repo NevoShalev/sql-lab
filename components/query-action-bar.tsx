@@ -12,6 +12,7 @@ import {
   BarChart3,
   PieChart,
   Clock,
+  X,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -52,6 +53,8 @@ interface QueryActionBarProps {
   onToggleAggregate: () => void;
   viewMode: "table" | "bar" | "pie";
   onViewModeChange: (v: "table" | "bar" | "pie") => void;
+  hasActiveFilters?: boolean;
+  onClearFilters?: () => void;
 }
 
 export function QueryActionBar({
@@ -69,6 +72,8 @@ export function QueryActionBar({
   onToggleAggregate,
   viewMode,
   onViewModeChange,
+  hasActiveFilters,
+  onClearFilters,
 }: QueryActionBarProps) {
   const hasSuccessResult = latestResult && !latestResult.error && !isRunning;
   const hasError = latestResult?.error && !isRunning;
@@ -126,7 +131,8 @@ export function QueryActionBar({
         </div>
       )}
 
-      {/* ── Tab group: Results | History ── */}
+      {/* ── Tab group: Results | History (+ clear filters) ── */}
+      <div className="flex items-center gap-1">
       <div className="flex items-center bg-muted/50 rounded-lg px-0.5 py-0.5 gap-0.5">
         {(["results", "history"] as const).map((tab) => {
           const badge =
@@ -175,6 +181,20 @@ export function QueryActionBar({
             </button>
           );
         })}
+      </div>
+      {hasActiveFilters && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onClearFilters}
+              className="h-6 w-6 rounded flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Clear filters</TooltipContent>
+        </Tooltip>
+      )}
       </div>
 
       {/* ── Spacer ── */}

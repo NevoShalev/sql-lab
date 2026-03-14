@@ -165,6 +165,8 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTabId);
   }, [activeTabId]);
+  const [hasActiveFilters, setHasActiveFilters] = useState(false);
+  const clearFiltersRef = useRef<() => void>(() => {});
   const [isRunning, setIsRunning] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const sidebarRef = useRef<ImperativePanelHandle>(null);
@@ -758,6 +760,8 @@ export default function Home() {
                     onToggleAggregate={() => setShowAggregate((v) => !v)}
                     viewMode={aggregateView}
                     onViewModeChange={setAggregateView}
+                    hasActiveFilters={hasActiveFilters}
+                    onClearFilters={() => clearFiltersRef.current()}
                   />
                   <div className="flex-1 min-h-0 flex overflow-hidden">
                     {/* On mobile, aggregate replaces results. On desktop, it's a side panel. */}
@@ -782,6 +786,8 @@ export default function Home() {
                                 prev.map((t) => (t.id === activeTabId ? { ...t, sql } : t))
                               );
                             }}
+                            onHasActiveFiltersChange={setHasActiveFilters}
+                            clearFiltersRef={clearFiltersRef}
                           />
                         ) : (
                           <QueryHistory

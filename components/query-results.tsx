@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -553,10 +553,12 @@ interface QueryResultsProps {
   isRunning: boolean;
   schema?: SchemaData | null;
   onApplyFix?: (sql: string) => void;
+  onHasActiveFiltersChange?: (has: boolean) => void;
+  clearFiltersRef?: React.MutableRefObject<() => void>;
 }
 
 
-export function QueryResults({ result, isRunning, schema, onApplyFix }: QueryResultsProps) {
+export function QueryResults({ result, isRunning, schema, onApplyFix, onHasActiveFiltersChange, clearFiltersRef }: QueryResultsProps) {
   const [sort, setSort] = useState<SortState>(null);
   const [page, setPage] = useState(0);
   const [displayLimit, setDisplayLimit] = useState(INITIAL_DISPLAY_ROWS);
@@ -573,6 +575,12 @@ export function QueryResults({ result, isRunning, schema, onApplyFix }: QueryRes
   const hasActiveFilters = Object.values(filters).some(isFilterActive);
 
   const clearFilters = () => setFilters({});
+
+  // Expose clear function and notify parent of active filter state
+  if (clearFiltersRef) clearFiltersRef.current = clearFilters;
+  useEffect(() => {
+    onHasActiveFiltersChange?.(hasActiveFilters);
+  }, [hasActiveFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSort = (col: string) => {
     setSort((prev) => {
