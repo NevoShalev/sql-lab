@@ -42,7 +42,7 @@ const SheetContent = React.forwardRef<
       <DialogPrimitive.Title className="sr-only">Sidebar</DialogPrimitive.Title>
       <DialogPrimitive.Description className="sr-only">Database connection and schema explorer</DialogPrimitive.Description>
       {children}
-      <DialogPrimitive.Close className="absolute right-3 top-3 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+      <DialogPrimitive.Close className="absolute -right-10 top-3 h-8 w-8 flex items-center justify-center rounded-full bg-card/90 border border-border shadow-md opacity-90 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
