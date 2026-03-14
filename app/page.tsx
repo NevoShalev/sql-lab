@@ -215,8 +215,24 @@ export default function Home() {
   const latestResult = tabResults[activeTabId] ?? null;
   const [history, setHistory] = useState<QueryResult[]>(_initHistoryCache);
   const [bottomTab, setBottomTab] = useState(_initBottomTab);
-  const [showAggregate, setShowAggregate] = useState(false);
-  const [aggregateView, setAggregateView] = useState<"table" | "bar" | "pie">("table");
+  const showAggregate = activeTab?.showAggregate ?? false;
+  const aggregateView = activeTab?.aggregateView ?? "table";
+
+  const setShowAggregate = useCallback((updater: boolean | ((prev: boolean) => boolean)) => {
+    setTabs((prev) =>
+      prev.map((t) => {
+        if (t.id !== activeTabId) return t;
+        const next = typeof updater === "function" ? updater(t.showAggregate ?? false) : updater;
+        return { ...t, showAggregate: next };
+      })
+    );
+  }, [activeTabId]);
+
+  const setAggregateView = useCallback((v: "table" | "bar" | "pie") => {
+    setTabs((prev) =>
+      prev.map((t) => (t.id === activeTabId ? { ...t, aggregateView: v } : t))
+    );
+  }, [activeTabId]);
 
   const fetchSchema = useCallback(async (conn: SavedConnection) => {
     // Only show loading spinner if we don't have cached schema

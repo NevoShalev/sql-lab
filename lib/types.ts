@@ -34,6 +34,8 @@ export interface QueryTab {
   name: string;
   sql: string;
   connectionId?: string;
+  showAggregate?: boolean;
+  aggregateView?: "table" | "bar" | "pie";
 }
 
 export interface SchemaColumn {
