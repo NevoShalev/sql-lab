@@ -188,8 +188,7 @@ function AiErrorSuggestion({
   if (!analysis) return null;
 
   return (
-    <div className="space-y-2 p-3 rounded-lg bg-violet-500/5 border border-violet-500/20">
-      <div className="flex items-start gap-3">
+    <div className="flex items-start gap-3 p-3 rounded-lg bg-violet-500/5 border border-violet-500/20">
         <Sparkles className="h-4 w-4 text-violet-400 shrink-0 mt-0.5" />
         <div className="space-y-2 min-w-0 flex-1">
           <p className="text-xs font-medium text-violet-400">AI Error Assist</p>
@@ -232,7 +231,6 @@ function AiErrorSuggestion({
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 }
