@@ -10,6 +10,8 @@ import {
   Type,
   ToggleLeft,
   Clock,
+  CalendarDays,
+  CalendarClock,
   Fingerprint,
   Braces,
   Binary,
@@ -28,14 +30,16 @@ interface SchemaExplorerProps {
 
 type TypeInfo = { icon: React.ComponentType<{ className?: string }>; color: string };
 
-const NUMERIC_TYPE: TypeInfo = { icon: Hash, color: "text-blue-400" };
-const TEXT_TYPE: TypeInfo = { icon: Type, color: "text-green-400" };
-const BOOL_TYPE: TypeInfo = { icon: ToggleLeft, color: "text-yellow-400" };
-const TIME_TYPE: TypeInfo = { icon: Clock, color: "text-purple-400" };
-const UUID_TYPE: TypeInfo = { icon: Fingerprint, color: "text-orange-400" };
-const JSON_TYPE: TypeInfo = { icon: Braces, color: "text-pink-400" };
-const BINARY_TYPE: TypeInfo = { icon: Binary, color: "text-red-400" };
-const DEFAULT_TYPE: TypeInfo = { icon: Hash, color: "text-muted-foreground" };
+const NUMERIC_TYPE:    TypeInfo = { icon: Hash,         color: "text-blue-400" };
+const TEXT_TYPE:       TypeInfo = { icon: Type,         color: "text-green-400" };
+const BOOL_TYPE:       TypeInfo = { icon: ToggleLeft,   color: "text-yellow-400" };
+const DATE_TYPE:       TypeInfo = { icon: CalendarDays, color: "text-purple-400" };
+const TIME_TYPE:       TypeInfo = { icon: Clock,        color: "text-purple-300" };
+const TIMESTAMP_TYPE:  TypeInfo = { icon: CalendarClock,color: "text-violet-400" };
+const UUID_TYPE:       TypeInfo = { icon: Fingerprint,  color: "text-orange-400" };
+const JSON_TYPE:       TypeInfo = { icon: Braces,       color: "text-pink-400" };
+const BINARY_TYPE:     TypeInfo = { icon: Binary,       color: "text-red-400" };
+const DEFAULT_TYPE:    TypeInfo = { icon: Hash,         color: "text-muted-foreground" };
 
 const TYPE_MAP: Record<string, TypeInfo> = {
   integer: NUMERIC_TYPE, bigint: NUMERIC_TYPE, smallint: NUMERIC_TYPE,
@@ -43,8 +47,11 @@ const TYPE_MAP: Record<string, TypeInfo> = {
   "double precision": NUMERIC_TYPE,
   text: TEXT_TYPE, varchar: TEXT_TYPE, "character varying": TEXT_TYPE, char: TEXT_TYPE,
   boolean: BOOL_TYPE, bool: BOOL_TYPE,
-  timestamp: TIME_TYPE, "timestamp without time zone": TIME_TYPE,
-  "timestamp with time zone": TIME_TYPE, date: TIME_TYPE, time: TIME_TYPE,
+  date: DATE_TYPE,
+  time: TIME_TYPE, "time without time zone": TIME_TYPE, "time with time zone": TIME_TYPE,
+  timestamp: TIMESTAMP_TYPE, "timestamp without time zone": TIMESTAMP_TYPE,
+  "timestamp with time zone": TIMESTAMP_TYPE,
+  interval: TIME_TYPE,
   uuid: UUID_TYPE,
   json: JSON_TYPE, jsonb: JSON_TYPE,
   bytea: BINARY_TYPE,

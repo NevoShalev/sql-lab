@@ -173,7 +173,7 @@ export default function Home() {
   const sidebarRef = useRef<ImperativePanelHandle>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(_initSidebarCollapsed);
   const isMobile = useIsMobile();
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
   // Mark as mounted (fixes hydration mismatch from localStorage reads)
@@ -604,12 +604,10 @@ export default function Home() {
                 size="icon"
                 className="h-7 w-7 mx-1 shrink-0 self-center text-muted-foreground hover:text-foreground"
               >
-                {theme === "light" ? (
-                  <Sun className="h-3.5 w-3.5" />
-                ) : theme === "dark" ? (
+                {resolvedTheme === "dark" ? (
                   <Moon className="h-3.5 w-3.5" />
                 ) : (
-                  <Monitor className="h-3.5 w-3.5" />
+                  <Sun className="h-3.5 w-3.5" />
                 )}
               </Button>
             </DropdownMenuTrigger>
@@ -768,15 +766,16 @@ export default function Home() {
                     onViewModeChange={setAggregateView}
                     hasActiveFilters={hasActiveFilters}
                     onClearFilters={() => clearFiltersRef.current()}
+                    isMobile={isMobile}
                   />
                   <div className="flex-1 min-h-0 flex overflow-hidden">
-                    {/* On mobile, aggregate replaces results. On desktop, it's a side panel. */}
-                    {isMobile && showAggregate && latestResult && !latestResult.error && latestResult.fields.length > 0 ? (
+                    {/* On mobile, aggregate tabs replace the side panel. On desktop, it's a side panel. */}
+                    {isMobile && (bottomTab === "agg_table" || bottomTab === "agg_bar" || bottomTab === "agg_pie") && latestResult && !latestResult.error && latestResult.fields.length > 0 ? (
                       <div className="flex-1 min-w-0 overflow-hidden">
                         <AggregatePanel
                           result={latestResult}
-                          view={aggregateView}
-                          onViewChange={setAggregateView}
+                          view={bottomTab.replace("agg_", "") as "table" | "bar" | "pie"}
+                          onViewChange={(v) => setBottomTab(`agg_${v}`)}
                           fullWidth
                         />
                       </div>

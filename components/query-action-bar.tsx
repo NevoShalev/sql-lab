@@ -12,6 +12,7 @@ import {
   BarChart3,
   PieChart,
   Clock,
+  Rows2,
   X,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -55,6 +56,7 @@ interface QueryActionBarProps {
   onViewModeChange: (v: "table" | "bar" | "pie") => void;
   hasActiveFilters?: boolean;
   onClearFilters?: () => void;
+  isMobile?: boolean;
 }
 
 export function QueryActionBar({
@@ -74,6 +76,7 @@ export function QueryActionBar({
   onViewModeChange,
   hasActiveFilters,
   onClearFilters,
+  isMobile,
 }: QueryActionBarProps) {
   const hasSuccessResult = latestResult && !latestResult.error && !isRunning;
   const hasError = latestResult?.error && !isRunning;
@@ -131,77 +134,88 @@ export function QueryActionBar({
         </div>
       )}
 
-      {/* ── Tab group: Results | History (+ clear filters) ── */}
+      {/* ── Tab group ── */}
       <div className="flex items-center gap-1">
-      <div className="flex items-center bg-muted/50 rounded-lg px-0.5 py-0.5 gap-0.5">
-        {(["results", "history"] as const).map((tab) => {
-          const badge =
-            tab === "results"
-              ? latestResult && !latestResult.error
-                ? latestResult.rowCount
-                : null
-              : historyCount > 0
-              ? historyCount
-              : null;
-          return (
-            <button
-              key={tab}
-              onClick={() => onBottomTabChange(tab)}
-              className={cn(
-                "h-7 px-2.5 text-xs rounded-md flex items-center gap-1.5 transition-all",
-                bottomTab === tab
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {/* Mobile unselected: icon only */}
-              {bottomTab !== tab && (
-                <span className="sm:hidden">
-                  {tab === "results"
-                    ? <Table2 className="h-3.5 w-3.5" />
-                    : <Clock className="h-3.5 w-3.5" />}
-                </span>
-              )}
-              {/* Text: always on desktop, only when selected on mobile */}
-              <span className={cn(bottomTab !== tab && "hidden sm:inline")}>
-                {tab === "results" ? "Results" : "History"}
-              </span>
-              {badge !== null && (
-                <span
+        <div className="flex items-center bg-muted/50 rounded-lg px-0.5 py-0.5 gap-0.5">
+          {isMobile ? (
+            /* Mobile: 5 icon-only tabs */
+            (
+              [
+                { tab: "results",   Icon: Rows2,    badge: latestResult && !latestResult.error ? latestResult.rowCount : null },
+                { tab: "history",   Icon: Clock,    badge: historyCount > 0 ? historyCount : null },
+                { tab: "agg_table", Icon: Table2,   badge: null },
+                { tab: "agg_bar",   Icon: BarChart3,badge: null },
+                { tab: "agg_pie",   Icon: PieChart, badge: null },
+              ] as const
+            ).map(({ tab, Icon, badge }) => (
+              <button
+                key={tab}
+                onClick={() => onBottomTabChange(tab)}
+                className={cn(
+                  "h-7 w-7 rounded-md flex items-center justify-center transition-all",
+                  bottomTab === tab
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {badge !== null && (
+                  <span className="sr-only">{badge}</span>
+                )}
+              </button>
+            ))
+          ) : (
+            /* Desktop: Results | History with text + badge */
+            (["results", "history"] as const).map((tab) => {
+              const badge =
+                tab === "results"
+                  ? latestResult && !latestResult.error ? latestResult.rowCount : null
+                  : historyCount > 0 ? historyCount : null;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => onBottomTabChange(tab)}
                   className={cn(
-                    "text-[10px] leading-none px-1 py-0.5 rounded-full tabular-nums",
+                    "h-7 px-2.5 text-xs rounded-md flex items-center gap-1.5 transition-all",
                     bottomTab === tab
-                      ? "bg-muted text-muted-foreground"
-                      : "bg-muted/60 text-muted-foreground/60"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-      {hasActiveFilters && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={onClearFilters}
-              className="h-6 w-6 rounded flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Clear filters</TooltipContent>
-        </Tooltip>
-      )}
+                  <span>{tab === "results" ? "Results" : "History"}</span>
+                  {badge !== null && (
+                    <span className={cn(
+                      "text-[10px] leading-none px-1 py-0.5 rounded-full tabular-nums",
+                      bottomTab === tab ? "bg-muted text-muted-foreground" : "bg-muted/60 text-muted-foreground/60"
+                    )}>
+                      {badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+        {hasActiveFilters && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onClearFilters}
+                className="h-6 w-6 rounded flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Clear filters</TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
       {/* ── Spacer ── */}
       <div className="flex-1" />
 
-      {/* ── View mode: Table | Bar | Pie (always visible when data exists) ── */}
-      {hasExportableRows && (
+      {/* ── View mode: Table | Bar | Pie (desktop only — mobile uses the 5-tab segmented control) ── */}
+      {hasExportableRows && !isMobile && (
         <>
           <div className="w-px h-4 bg-border/60 shrink-0" />
           <div className="flex items-center gap-0.5">

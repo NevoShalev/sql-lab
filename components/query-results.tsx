@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -261,6 +262,7 @@ interface ActiveFilter {
   op: FilterOp;
   value: string;
   value2?: string;
+  values?: string[]; // multi-select for equals / not_equals
 }
 
 const NUMERIC_OIDS = new Set([20, 21, 23, 26, 700, 701, 1700, 790]);
@@ -282,6 +284,7 @@ function isFilterActive(f: ActiveFilter): boolean {
   if (NO_VALUE_OPS.has(f.op)) return true;
   if (f.op === "between" || f.op === "date_between")
     return f.value.trim() !== "" && (f.value2 ?? "").trim() !== "";
+  if (f.values !== undefined) return f.values.length > 0;
   return f.value.trim() !== "";
 }
 
@@ -359,8 +362,16 @@ function applyFilter(cellVal: unknown, filter: ActiveFilter): boolean {
   if (op === "not_contains") return !strLower.includes(val);
   if (op === "starts_with")  return strLower.startsWith(val);
   if (op === "ends_with")    return strLower.endsWith(val);
-  if (op === "equals")       return strLower === val;
-  if (op === "not_equals")   return strLower !== val;
+  if (op === "equals") {
+    if (filter.values && filter.values.length > 0)
+      return filter.values.some((v) => strLower === v.toLowerCase());
+    return strLower === val;
+  }
+  if (op === "not_equals") {
+    if (filter.values && filter.values.length > 0)
+      return !filter.values.some((v) => strLower === v.toLowerCase());
+    return strLower !== val;
+  }
 
   const num       = Number(str);
   const filterNum = Number(value);
@@ -453,8 +464,17 @@ function ColumnFilterPopover({
     if (open && needsValue) setTimeout(() => inputRef.current?.focus(), 0);
   }, [open, needsValue]);
 
+  const curValues = filter?.values ?? [];
+
   const set = (patch: Partial<ActiveFilter>) =>
-    onFilterChange({ op: currentOp, value: curVal, value2: curVal2, ...patch });
+    onFilterChange({ op: currentOp, value: curVal, value2: curVal2, values: curValues, ...patch });
+
+  const toggleValue = (v: string) => {
+    const next = curValues.includes(v)
+      ? curValues.filter((x) => x !== v)
+      : [...curValues, v];
+    onFilterChange({ op: currentOp, value: "", value2: curVal2, values: next });
+  };
 
   const inputCls = "block w-full h-7 text-xs bg-muted/40 border border-border rounded px-2 focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/40";
 
@@ -484,7 +504,11 @@ function ColumnFilterPopover({
           {/* Operator — shadcn Select */}
           <Select
             value={currentOp}
-            onValueChange={(val) => set({ op: val as FilterOp, value: curVal, value2: curVal2 })}
+            onValueChange={(val) => {
+              const newOp = val as FilterOp;
+              const keepValues = newOp === "equals" || newOp === "not_equals";
+              onFilterChange({ op: newOp, value: curVal, value2: curVal2, values: keepValues ? curValues : undefined });
+            }}
             onOpenChange={setSelectOpen}
           >
             <SelectTrigger className="h-7 text-xs px-2">
@@ -503,30 +527,41 @@ function ColumnFilterPopover({
           {needsValue && (
             showDistinctSelect && distinctValues.length > 0 ? (
               <div className="flex flex-col gap-1">
-                <input
-                  autoFocus
-                  type="text"
-                  value={distinctSearch}
-                  onChange={(e) => setDistinctSearch(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
-                  placeholder="Search values…"
-                  className={inputCls}
-                />
+                <div className="flex items-center justify-between gap-1">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={distinctSearch}
+                    onChange={(e) => setDistinctSearch(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
+                    placeholder="Search values…"
+                    className={cn(inputCls, "flex-1")}
+                  />
+                  {curValues.length > 0 && (
+                    <span className="text-[10px] text-primary font-medium shrink-0">
+                      {curValues.length} selected
+                    </span>
+                  )}
+                </div>
                 <div className="max-h-40 overflow-y-auto rounded border border-border bg-muted/20 flex flex-col">
                   {filteredDistinctValues.length === 0 ? (
                     <p className="text-[11px] text-muted-foreground px-2 py-1.5">No matches</p>
                   ) : (
                     filteredDistinctValues.map((v) => (
-                      <button
+                      <label
                         key={v}
-                        onClick={() => set({ value: v })}
                         className={cn(
-                          "text-left text-xs px-2 py-1 hover:bg-accent transition-colors text-foreground break-words",
-                          curVal === v && "bg-primary/10 text-primary font-medium"
+                          "flex items-center gap-2 px-2 py-1 hover:bg-accent transition-colors cursor-pointer",
+                          curValues.includes(v) && "bg-primary/5"
                         )}
                       >
-                        {v}
-                      </button>
+                        <Checkbox
+                          checked={curValues.includes(v)}
+                          onChange={() => toggleValue(v)}
+                          className="shrink-0"
+                        />
+                        <span className="text-xs text-foreground break-words">{v}</span>
+                      </label>
                     ))
                   )}
                 </div>
@@ -559,7 +594,7 @@ function ColumnFilterPopover({
           {/* Clear */}
           {isActive && (
             <button
-              onClick={() => { onFilterChange(null); setOpen(false); }}
+              onClick={() => { onFilterChange(null); setDistinctSearch(""); setOpen(false); }}
               className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors border-t border-border/50 pt-1.5 mt-0.5"
             >
               <X className="h-3 w-3" /> Clear filter
