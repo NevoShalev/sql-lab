@@ -331,6 +331,7 @@ export const SqlEditor = memo(function SqlEditor({ sql, isRunning, schema, onSql
           suggestOnTriggerCharacters: true,
           acceptSuggestionOnEnter: "smart",
           bracketPairColorization: { enabled: true },
+          accessibilitySupport: "off",
         }}
       />
     </div>

@@ -14,7 +14,6 @@ import {
   Braces,
   Binary,
 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { SchemaData, SchemaTable } from "@/lib/types";
@@ -154,8 +153,8 @@ export function SchemaExplorer({
 
   return (
     <div className="flex flex-col h-full">
-      <ScrollArea className="flex-1">
-        <div className="p-2 overflow-hidden">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+        <div className="p-2">
           {error && (
             <div className="flex items-start gap-2 p-2 rounded-md bg-destructive/10 text-destructive text-xs">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
@@ -177,7 +176,7 @@ export function SchemaExplorer({
               return (
                 <div key={schemaName} className="mb-1">
                   <div
-                    className="flex items-center gap-1 px-2 py-1.5 rounded-sm cursor-pointer hover:bg-accent"
+                    className="flex items-center gap-1 px-2 py-1.5 rounded-sm cursor-pointer hover:bg-accent w-full overflow-hidden"
                     onClick={() => toggleSchema(schemaName)}
                   >
                     <ChevronRight
@@ -211,7 +210,7 @@ export function SchemaExplorer({
               );
             })}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
