@@ -3,7 +3,6 @@
 import {
   Play,
   Square,
-  Trash2,
   CheckCircle2,
   AlertCircle,
   Download,
@@ -81,23 +80,6 @@ export function QueryActionBar({
         </button>
       )}
 
-      {/* Clear */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            className={cn(
-              "h-7 w-7 rounded-md transition-colors flex items-center justify-center",
-              "text-muted-foreground hover:text-foreground hover:bg-accent/50",
-              "disabled:pointer-events-none disabled:opacity-50"
-            )}
-            onClick={onClear}
-            disabled={!hasSql}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>Clear editor</TooltipContent>
-      </Tooltip>
 
       {/* Inline status */}
       {hasSuccessResult && (
