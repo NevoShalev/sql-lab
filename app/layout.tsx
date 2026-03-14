@@ -10,6 +10,13 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "SQL Lab",
   description: "A powerful SQL query editor and database explorer",
+  icons: {
+    icon: [
+      { url: "/icon.svg",  type: "image/svg+xml" },
+      { url: "/icon.png",  type: "image/png", sizes: "32x32" },
+    ],
+    apple: { url: "/apple-icon.png", sizes: "180x180" },
+  },
 };
 
 export const viewport: Viewport = {
