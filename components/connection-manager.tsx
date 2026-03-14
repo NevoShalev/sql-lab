@@ -8,12 +8,18 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  Link,
   ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+  FieldSet,
+} from "@/components/ui/field";
 import {
   Dialog,
   DialogContent,
@@ -222,116 +228,114 @@ export function ConnectionManager({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-3 py-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="name" className="text-xs">Display Name</Label>
-              <Input
-                id="name"
-                placeholder="My Database"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="h-8 text-sm"
-              />
-            </div>
+          <FieldGroup className="py-2">
+            <FieldSet>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="name">Display Name</FieldLabel>
+                  <Input
+                    id="name"
+                    placeholder="My Database"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  />
+                </Field>
+                <div className="grid grid-cols-3 gap-3">
+                  <Field className="col-span-2">
+                    <FieldLabel htmlFor="host">Host</FieldLabel>
+                    <Input
+                      id="host"
+                      value={form.host}
+                      onChange={(e) => setForm({ ...form, host: e.target.value })}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="port">Port</FieldLabel>
+                    <Input
+                      id="port"
+                      value={form.port}
+                      onChange={(e) => setForm({ ...form, port: e.target.value })}
+                    />
+                  </Field>
+                </div>
+                <Field>
+                  <FieldLabel htmlFor="database">Database</FieldLabel>
+                  <Input
+                    id="database"
+                    value={form.database}
+                    onChange={(e) => setForm({ ...form, database: e.target.value })}
+                  />
+                </Field>
+              </FieldGroup>
+            </FieldSet>
 
-            <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-2 grid gap-1.5">
-                <Label htmlFor="host" className="text-xs">Host</Label>
-                <Input
-                  id="host"
-                  value={form.host}
-                  onChange={(e) => setForm({ ...form, host: e.target.value })}
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="port" className="text-xs">Port</Label>
-                <Input
-                  id="port"
-                  value={form.port}
-                  onChange={(e) => setForm({ ...form, port: e.target.value })}
-                  className="h-8 text-sm"
-                />
-              </div>
-            </div>
+            <FieldSeparator />
 
-            <div className="grid gap-1.5">
-              <Label htmlFor="database" className="text-xs">Database</Label>
-              <Input
-                id="database"
-                value={form.database}
-                onChange={(e) => setForm({ ...form, database: e.target.value })}
-                className="h-8 text-sm"
-              />
-            </div>
-
-            <div className="grid gap-1.5">
-              <Label htmlFor="user" className="text-xs">Username</Label>
-              <Input
-                id="user"
-                value={form.user}
-                onChange={(e) => setForm({ ...form, user: e.target.value })}
-                className="h-8 text-sm"
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="password" className="text-xs">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="h-8 text-sm"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="ssl"
-                checked={form.ssl}
-                onChange={(e) => setForm({ ...form, ssl: e.target.checked })}
-                className="rounded border-input"
-              />
-              <Label htmlFor="ssl" className="text-xs cursor-pointer">
-                Require SSL
-              </Label>
-            </div>
+            <FieldSet>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="user">Username</FieldLabel>
+                  <Input
+                    id="user"
+                    value={form.user}
+                    onChange={(e) => setForm({ ...form, user: e.target.value })}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  />
+                </Field>
+                <Field orientation="horizontal">
+                  <Checkbox
+                    id="ssl"
+                    checked={form.ssl}
+                    onChange={(e) => setForm({ ...form, ssl: (e.target as HTMLInputElement).checked })}
+                  />
+                  <FieldLabel htmlFor="ssl" className="font-normal cursor-pointer">
+                    Require SSL
+                  </FieldLabel>
+                </Field>
+              </FieldGroup>
+            </FieldSet>
 
             {testResult && (
               <div
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-xs",
+                  "flex items-center gap-2 rounded-md px-3 py-2.5 text-sm",
                   testResult === "success"
                     ? "bg-green-950 text-green-400"
                     : "bg-red-950 text-red-400"
                 )}
               >
                 {testResult === "success" ? (
-                  <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                  <CheckCircle className="h-4 w-4 shrink-0" />
                 ) : (
-                  <XCircle className="h-3.5 w-3.5 shrink-0" />
+                  <XCircle className="h-4 w-4 shrink-0" />
                 )}
                 <span className="truncate">{testMessage}</span>
               </div>
             )}
-          </div>
+          </FieldGroup>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter>
             <Button
               variant="outline"
-              size="sm"
               onClick={handleTest}
               disabled={testing}
             >
               {testing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <TestTube className="h-3.5 w-3.5" />
+                <TestTube className="h-4 w-4" />
               )}
               Test
             </Button>
-            <Button size="sm" onClick={handleSave}>
+            <Button onClick={handleSave}>
               Save & Connect
             </Button>
           </DialogFooter>
