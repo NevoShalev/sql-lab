@@ -355,6 +355,16 @@ function applyFilter(cellVal: unknown, filter: ActiveFilter): boolean {
   if (op === "is_empty")     return str === "" || cellVal === null || cellVal === undefined;
   if (op === "is_not_empty") return str !== "" && cellVal !== null && cellVal !== undefined;
 
+  // Multi-select must be checked before the empty-val guard, since value is "" when using checkboxes
+  if (op === "equals") {
+    if (filter.values && filter.values.length > 0)
+      return filter.values.some((v) => strLower === v.toLowerCase());
+  }
+  if (op === "not_equals") {
+    if (filter.values && filter.values.length > 0)
+      return !filter.values.some((v) => strLower === v.toLowerCase());
+  }
+
   const val = value.toLowerCase().trim();
   if (!val) return true;
 
@@ -362,16 +372,8 @@ function applyFilter(cellVal: unknown, filter: ActiveFilter): boolean {
   if (op === "not_contains") return !strLower.includes(val);
   if (op === "starts_with")  return strLower.startsWith(val);
   if (op === "ends_with")    return strLower.endsWith(val);
-  if (op === "equals") {
-    if (filter.values && filter.values.length > 0)
-      return filter.values.some((v) => strLower === v.toLowerCase());
-    return strLower === val;
-  }
-  if (op === "not_equals") {
-    if (filter.values && filter.values.length > 0)
-      return !filter.values.some((v) => strLower === v.toLowerCase());
-    return strLower !== val;
-  }
+  if (op === "equals")       return strLower === val;
+  if (op === "not_equals")   return strLower !== val;
 
   const num       = Number(str);
   const filterNum = Number(value);
