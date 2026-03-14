@@ -22,6 +22,19 @@ import {
 import { cn } from "@/lib/utils";
 import { QueryResult } from "@/lib/types";
 
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 3_600_000) {
+    const m = Math.floor(ms / 60_000);
+    const s = Math.floor((ms % 60_000) / 1000);
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  }
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
 interface QueryActionBarProps {
   isRunning: boolean;
   hasSql: boolean;
@@ -102,7 +115,7 @@ export function QueryActionBar({
       {hasSuccessResult && (
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />
-          <span>{latestResult.duration}ms</span>
+          <span>{formatDuration(latestResult.duration)}</span>
         </div>
       )}
       {hasError && (
@@ -111,9 +124,6 @@ export function QueryActionBar({
           <span>Error</span>
         </div>
       )}
-
-      {/* ── Spacer ── */}
-      <div className="flex-1" />
 
       {/* ── Tab group: Results | History ── */}
       <div className="flex items-center bg-muted/50 rounded-lg px-0.5 gap-0.5">
@@ -154,6 +164,9 @@ export function QueryActionBar({
           );
         })}
       </div>
+
+      {/* ── Spacer ── */}
+      <div className="flex-1" />
 
       {/* ── View mode: Table | Bar | Pie (always visible when data exists) ── */}
       {hasExportableRows && (
