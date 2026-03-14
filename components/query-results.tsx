@@ -2,38 +2,18 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import {
-  Download,
   AlertCircle,
   CheckCircle2,
-  Clock,
   Rows,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  FileJson,
-  FileText,
   Sparkles,
   Loader2,
   Copy,
   Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { QueryResult, SchemaData } from "@/lib/types";
 
 const MAX_DISPLAY_ROWS = 1000;
@@ -296,37 +276,6 @@ export function QueryResults({ result, isRunning, schema, onApplyFix }: QueryRes
   const pagedRows = sortedRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.ceil(sortedRows.length / PAGE_SIZE);
 
-  const exportCSV = () => {
-    if (!result) return;
-    const headers = result.fields.map((f) => f.name).join(",");
-    const rows = result.rows
-      .map((row) =>
-        result.fields
-          .map((f) => {
-            const val = formatCellValue(row[f.name]);
-            return `"${val.replace(/"/g, '""')}"`;
-          })
-          .join(",")
-      )
-      .join("\n");
-    download(`${headers}\n${rows}`, "query-results.csv", "text/csv");
-  };
-
-  const exportJSON = () => {
-    if (!result) return;
-    download(JSON.stringify(result.rows, null, 2), "query-results.json", "application/json");
-  };
-
-  const download = (content: string, filename: string, type: string) => {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   if (isRunning) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
@@ -396,51 +345,6 @@ export function QueryResults({ result, isRunning, schema, onApplyFix }: QueryRes
 
   return (
     <div className="flex flex-col h-full">
-      {/* Status bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-card/30 shrink-0">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
-            <span className="text-green-400 font-medium">Success</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Rows className="h-3 w-3" />
-            <span>{result.rowCount} row{result.rowCount !== 1 ? "s" : ""}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            <span>{result.duration}ms</span>
-          </div>
-          {result.rows.length > MAX_DISPLAY_ROWS && (
-            <Badge variant="outline" className="text-[10px] h-4">
-              Showing {MAX_DISPLAY_ROWS.toLocaleString()} of {result.rowCount.toLocaleString()}
-            </Badge>
-          )}
-        </div>
-
-        {!isModifyQuery && result.rows.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-6 text-xs gap-1.5">
-                <Download className="h-3 w-3" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={exportCSV}>
-                <FileText className="h-4 w-4 mr-2" />
-                Export as CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportJSON}>
-                <FileJson className="h-4 w-4 mr-2" />
-                Export as JSON
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
-
-      {/* Results */}
       {isModifyQuery ? (
         <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
           <CheckCircle2 className="h-8 w-8 text-green-400" />

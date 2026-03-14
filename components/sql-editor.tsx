@@ -316,7 +316,7 @@ export const SqlEditor = memo(function SqlEditor({ sql, isRunning, schema, onSql
           fontLigatures: true,
           minimap: { enabled: false },
           scrollBeyondLastLine: false,
-          wordWrap: "on",
+          wordWrap: "off",
           lineNumbers: "on",
           lineNumbersMinChars: 3,
           renderLineHighlight: "line",

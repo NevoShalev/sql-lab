@@ -414,6 +414,38 @@ export default function Home() {
     setBottomTab("results");
   }, [activeTabId]);
 
+  const downloadFile = useCallback((content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleExportCSV = useCallback(() => {
+    if (!latestResult) return;
+    const headers = latestResult.fields.map((f) => f.name).join(",");
+    const rows = latestResult.rows
+      .map((row) =>
+        latestResult.fields
+          .map((f) => {
+            const val = row[f.name];
+            const str = val === null || val === undefined ? "" : typeof val === "object" ? JSON.stringify(val) : String(val);
+            return `"${str.replace(/"/g, '""')}"`;
+          })
+          .join(",")
+      )
+      .join("\n");
+    downloadFile(`${headers}\n${rows}`, "query-results.csv", "text/csv");
+  }, [latestResult, downloadFile]);
+
+  const handleExportJSON = useCallback(() => {
+    if (!latestResult) return;
+    downloadFile(JSON.stringify(latestResult.rows, null, 2), "query-results.json", "application/json");
+  }, [latestResult, downloadFile]);
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex flex-col h-screen overflow-hidden">
@@ -662,6 +694,8 @@ export default function Home() {
                     onBottomTabChange={setBottomTab}
                     latestResult={latestResult}
                     historyCount={history.length}
+                    onExportCSV={handleExportCSV}
+                    onExportJSON={handleExportJSON}
                   />
                   <div className="flex-1 min-h-0 overflow-hidden">
                     {bottomTab === "results" ? (
