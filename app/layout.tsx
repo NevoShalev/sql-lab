@@ -12,8 +12,8 @@ export const metadata: Metadata = {
   description: "A powerful SQL query editor and database explorer",
   icons: {
     icon: [
-      { url: "/icon.svg",  type: "image/svg+xml" },
-      { url: "/icon.png",  type: "image/png", sizes: "32x32" },
+      { url: "/favicon.ico",  sizes: "any" },
+      { url: "/icon.svg",     type: "image/svg+xml" },
     ],
     apple: { url: "/apple-icon.png", sizes: "180x180" },
   },
