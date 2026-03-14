@@ -189,7 +189,7 @@ function AiErrorSuggestion({
 
   return (
     <div className="flex items-start gap-3 p-3 rounded-lg bg-violet-500/5 border border-violet-500/20">
-        <Sparkles className="h-4 w-4 text-violet-400 shrink-0 mt-0.5" />
+        <Sparkles className="h-4 w-4 text-violet-400 shrink-0" />
         <div className="space-y-2 min-w-0 flex-1">
           <p className="text-xs font-medium text-violet-400">AI Error Assist</p>
           {analysis.explanation && (
@@ -303,7 +303,7 @@ export function QueryResults({ result, isRunning, schema, onApplyFix }: QueryRes
       <div className="p-4 space-y-3 overflow-auto h-full">
         {/* Error message + location */}
         <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-          <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+          <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
           <div className="space-y-2 min-w-0 flex-1">
             <p className="text-xs font-medium text-destructive">Query Error</p>
             <p className="text-sm text-foreground/80 font-mono">{result.error}</p>
