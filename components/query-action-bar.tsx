@@ -8,6 +8,11 @@ import {
   Download,
   FileJson,
   FileText,
+  Sigma,
+  Table2,
+  BarChart3,
+  PieChart,
+  X,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -16,7 +21,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { QueryResult } from "@/lib/types";
 
@@ -32,6 +36,10 @@ interface QueryActionBarProps {
   historyCount: number;
   onExportCSV: () => void;
   onExportJSON: () => void;
+  showAggregate: boolean;
+  onToggleAggregate: () => void;
+  viewMode: "table" | "bar" | "pie";
+  onViewModeChange: (v: "table" | "bar" | "pie") => void;
 }
 
 export function QueryActionBar({
@@ -46,6 +54,10 @@ export function QueryActionBar({
   historyCount,
   onExportCSV,
   onExportJSON,
+  showAggregate,
+  onToggleAggregate,
+  viewMode,
+  onViewModeChange,
 }: QueryActionBarProps) {
   const hasSuccessResult = latestResult && !latestResult.error && !isRunning;
   const hasError = latestResult?.error && !isRunning;
@@ -80,7 +92,6 @@ export function QueryActionBar({
         </button>
       )}
 
-
       {/* Inline status */}
       {hasSuccessResult && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground ml-1">
@@ -102,7 +113,7 @@ export function QueryActionBar({
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Results / History tab switcher */}
+      {/* Results / Download / History / Aggregate tab switcher */}
       <div className="flex items-center gap-0.5">
         <button
           className={cn(
@@ -120,6 +131,28 @@ export function QueryActionBar({
             </span>
           )}
         </button>
+
+        {/* Download — next to Results */}
+        {hasExportableRows && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="h-7 w-7 rounded-md transition-colors flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50">
+                <Download className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onExportCSV}>
+                <FileText className="h-4 w-4 mr-2" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onExportJSON}>
+                <FileJson className="h-4 w-4 mr-2" />
+                Export as JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
         <button
           className={cn(
             "h-7 px-3 text-xs rounded-md transition-colors",
@@ -134,30 +167,50 @@ export function QueryActionBar({
             <span className="ml-1.5 text-[10px] opacity-60">{historyCount}</span>
           )}
         </button>
-      </div>
 
-      {/* Export icon */}
-      {hasExportableRows && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="h-7 w-7 rounded-md transition-colors flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50 ml-1"
-            >
-              <Download className="h-3.5 w-3.5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onExportCSV}>
-              <FileText className="h-4 w-4 mr-2" />
-              Export as CSV
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onExportJSON}>
-              <FileJson className="h-4 w-4 mr-2" />
-              Export as JSON
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+        {/* Aggregate toggle — transforms into view selector when open */}
+        {hasExportableRows && (
+          showAggregate ? (
+            <>
+              {(["table", "bar", "pie"] as const).map((v) => {
+                const Icon = v === "table" ? Table2 : v === "bar" ? BarChart3 : PieChart;
+                return (
+                  <button
+                    key={v}
+                    onClick={() => onViewModeChange(v)}
+                    className={cn(
+                      "h-7 w-7 rounded-md transition-colors flex items-center justify-center",
+                      viewMode === v
+                        ? "bg-accent text-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </button>
+                );
+              })}
+              <button
+                onClick={onToggleAggregate}
+                className="h-7 w-7 rounded-md transition-colors flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="h-7 w-7 rounded-md transition-colors flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  onClick={onToggleAggregate}
+                >
+                  <Sigma className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Aggregate</TooltipContent>
+            </Tooltip>
+          )
+        )}
+      </div>
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { SqlEditor } from "@/components/sql-editor";
 import { QueryResults } from "@/components/query-results";
 import { QueryHistory } from "@/components/query-history";
 import { QueryActionBar } from "@/components/query-action-bar";
+import { AggregatePanel } from "@/components/aggregate-panel";
 import { cn } from "@/lib/utils";
 import { QueryResult, QueryTab, SavedConnection, SchemaData } from "@/lib/types";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -205,6 +206,8 @@ export default function Home() {
   const [latestResult, setLatestResult] = useState<QueryResult | null>(_initResultsCache);
   const [history, setHistory] = useState<QueryResult[]>(_initHistoryCache);
   const [bottomTab, setBottomTab] = useState(_initBottomTab);
+  const [showAggregate, setShowAggregate] = useState(false);
+  const [aggregateView, setAggregateView] = useState<"table" | "bar" | "pie">("table");
 
   const fetchSchema = useCallback(async (conn: SavedConnection) => {
     // Only show loading spinner if we don't have cached schema
@@ -676,24 +679,49 @@ export default function Home() {
                     historyCount={history.length}
                     onExportCSV={handleExportCSV}
                     onExportJSON={handleExportJSON}
+                    showAggregate={showAggregate}
+                    onToggleAggregate={() => setShowAggregate((v) => !v)}
+                    viewMode={aggregateView}
+                    onViewModeChange={setAggregateView}
                   />
-                  <div className="flex-1 min-h-0 overflow-hidden">
-                    {bottomTab === "results" ? (
-                      <QueryResults
-                        result={latestResult}
-                        isRunning={isRunning}
-                        schema={schema}
-                        onApplyFix={(sql) => {
-                          setTabs((prev) =>
-                            prev.map((t) => (t.id === activeTabId ? { ...t, sql } : t))
-                          );
-                        }}
-                      />
+                  <div className="flex-1 min-h-0 flex overflow-hidden">
+                    {/* On mobile, aggregate replaces results. On desktop, it's a side panel. */}
+                    {isMobile && showAggregate && latestResult && !latestResult.error && latestResult.fields.length > 0 ? (
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <AggregatePanel
+                          result={latestResult}
+                          view={aggregateView}
+                          onViewChange={setAggregateView}
+                          fullWidth
+                        />
+                      </div>
                     ) : (
-                      <QueryHistory
-                        history={history}
-                        onRestore={handleRestoreHistory}
-                        onClear={() => setHistory([])}
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        {bottomTab === "results" ? (
+                          <QueryResults
+                            result={latestResult}
+                            isRunning={isRunning}
+                            schema={schema}
+                            onApplyFix={(sql) => {
+                              setTabs((prev) =>
+                                prev.map((t) => (t.id === activeTabId ? { ...t, sql } : t))
+                              );
+                            }}
+                          />
+                        ) : (
+                          <QueryHistory
+                            history={history}
+                            onRestore={handleRestoreHistory}
+                            onClear={() => setHistory([])}
+                          />
+                        )}
+                      </div>
+                    )}
+                    {!isMobile && showAggregate && latestResult && !latestResult.error && latestResult.fields.length > 0 && (
+                      <AggregatePanel
+                        result={latestResult}
+                        view={aggregateView}
+                        onViewChange={setAggregateView}
                       />
                     )}
                   </div>
