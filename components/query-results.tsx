@@ -406,8 +406,9 @@ function ColumnFilterPopover({
   onFilterChange: (f: ActiveFilter | null) => void;
   rows: Record<string, unknown>[];
 }) {
-  const [open, setOpen]           = useState(false);
+  const [open, setOpen]             = useState(false);
   const [selectOpen, setSelectOpen] = useState(false);
+  const [distinctSearch, setDistinctSearch] = useState("");
   const ref      = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -430,6 +431,12 @@ function ColumnFilterPopover({
       rows.map((r) => formatCellValue(r[field])).filter((v) => v !== "")
     )].sort();
   }, [showDistinctSelect, rows, field]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filteredDistinctValues = useMemo(() => {
+    if (!distinctSearch.trim()) return distinctValues;
+    const q = distinctSearch.toLowerCase();
+    return distinctValues.filter((v) => v.toLowerCase().includes(q));
+  }, [distinctValues, distinctSearch]);
 
   // Close popover on outside click — but not while the Select dropdown is open
   useEffect(() => {
@@ -466,7 +473,10 @@ function ColumnFilterPopover({
 
       {open && (
         <div
-          className="absolute top-full left-0 mt-1 z-50 w-56 bg-card border border-border rounded-lg shadow-lg p-2.5 flex flex-col gap-2"
+          className={cn(
+            "absolute top-full left-0 mt-1 z-50 bg-card border border-border rounded-lg shadow-lg p-2.5 flex flex-col gap-2",
+            showDistinctSelect && distinctValues.length > 0 ? "w-72" : "w-56"
+          )}
           onClick={(e) => e.stopPropagation()}
         >
           <p className="text-[10px] font-medium text-muted-foreground">{field}</p>
@@ -492,22 +502,35 @@ function ColumnFilterPopover({
           {/* Primary value */}
           {needsValue && (
             showDistinctSelect && distinctValues.length > 0 ? (
-              <Select
-                value={curVal}
-                onValueChange={(val) => set({ value: val })}
-                onOpenChange={setSelectOpen}
-              >
-                <SelectTrigger className="h-7 text-xs px-2">
-                  <SelectValue placeholder="select value…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {distinctValues.map((v) => (
-                    <SelectItem key={v} value={v} className="text-xs">
-                      {v}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex flex-col gap-1">
+                <input
+                  autoFocus
+                  type="text"
+                  value={distinctSearch}
+                  onChange={(e) => setDistinctSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
+                  placeholder="Search values…"
+                  className={inputCls}
+                />
+                <div className="max-h-40 overflow-y-auto rounded border border-border bg-muted/20 flex flex-col">
+                  {filteredDistinctValues.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground px-2 py-1.5">No matches</p>
+                  ) : (
+                    filteredDistinctValues.map((v) => (
+                      <button
+                        key={v}
+                        onClick={() => set({ value: v })}
+                        className={cn(
+                          "text-left text-xs px-2 py-1 hover:bg-accent transition-colors text-foreground break-words",
+                          curVal === v && "bg-primary/10 text-primary font-medium"
+                        )}
+                      >
+                        {v}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
             ) : (
               <input
                 ref={inputRef}
