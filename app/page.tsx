@@ -165,6 +165,7 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTabId);
   }, [activeTabId]);
+  const [mounted, setMounted] = useState(false);
   const [hasActiveFilters, setHasActiveFilters] = useState(false);
   const clearFiltersRef = useRef<() => void>(() => {});
   const [isRunning, setIsRunning] = useState(false);
@@ -174,6 +175,9 @@ export default function Home() {
   const isMobile = useIsMobile();
   const { theme, setTheme } = useTheme();
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+
+  // Mark as mounted (fixes hydration mismatch from localStorage reads)
+  useEffect(() => setMounted(true), []);
 
   // Collapse sidebar on mount if it was saved as collapsed
   useEffect(() => {
@@ -485,9 +489,11 @@ export default function Home() {
     downloadFile(JSON.stringify(latestResult.rows, null, 2), "query-results.json", "application/json");
   }, [latestResult, downloadFile]);
 
+  if (!mounted) return null;
+
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex flex-col h-screen overflow-hidden">
+      <div className="flex flex-col h-screen overflow-hidden pb-[env(safe-area-inset-bottom)]">
         {/* Header */}
         <header className="flex items-center h-10 border-b border-border bg-card/80 backdrop-blur shrink-0">
           {/* Sidebar toggle */}
