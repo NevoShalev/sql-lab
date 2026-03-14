@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useCallback } from "react";
-import { ChevronDown, GripVertical } from "lucide-react";
+import { ChevronDown, GripVertical, ArrowUpDown } from "lucide-react";
 import { QueryResult, QueryField } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -105,9 +105,7 @@ function computeAggregate(
     }
     result.push({ group, value });
   }
-  if (["COUNT", "COUNT_DISTINCT", "SUM"].includes(aggFunc))
-    return result.sort((a, b) => Number(b.value) - Number(a.value));
-  return result.sort((a, b) => String(a.group).localeCompare(String(b.group)));
+  return result;
 }
 
 function aggLabel(fn: AggFunc, vf: string | null) {
@@ -138,22 +136,25 @@ function BarChartView({ rows }: { rows: { group: string; value: number | string 
     <div className="p-3 space-y-1.5">
       {top.map((row, i) => (
         <div key={i} className="flex items-center gap-2 min-w-0">
+          {/* Group label */}
           <div className="w-20 text-[11px] text-muted-foreground truncate text-right shrink-0">
             {row.group}
           </div>
-          <div className="flex-1 flex items-center gap-1.5 min-w-0">
+          {/* Bar track — flex-1 so it fills remaining space */}
+          <div className="flex-1 min-w-0 relative h-4">
             <div
-              className="h-4 rounded-sm shrink-0 transition-all"
+              className="absolute left-0 top-0 bottom-0 rounded-sm transition-all"
               style={{
                 width: `${(Number(row.value) / maxVal) * 100}%`,
                 backgroundColor: COLORS[i % COLORS.length],
                 opacity: 0.85,
               }}
             />
-            <span className="text-[11px] font-mono tabular-nums text-foreground shrink-0">
-              {typeof row.value === "number" ? row.value.toLocaleString() : row.value}
-            </span>
           </div>
+          {/* Value label — fixed width so it never gets squeezed */}
+          <span className="text-[11px] font-mono tabular-nums text-foreground shrink-0 w-10 text-right">
+            {typeof row.value === "number" ? row.value.toLocaleString() : row.value}
+          </span>
         </div>
       ))}
       {rows.length > 20 && (
@@ -168,6 +169,8 @@ function BarChartView({ rows }: { rows: { group: string; value: number | string 
 // ─── Pie chart ────────────────────────────────────────────────────────────────
 
 function PieChartView({ rows }: { rows: { group: string; value: number | string }[] }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+
   const top8 = rows.slice(0, 8);
   const othersVal = rows.slice(8).reduce((s, r) => s + Number(r.value), 0);
   const segments = othersVal > 0 ? [...top8, { group: "Others", value: othersVal }] : top8;
@@ -175,40 +178,84 @@ function PieChartView({ rows }: { rows: { group: string; value: number | string 
 
   const cx = 80, cy = 80, r = 58, strokeWidth = 11;
   const circumference = 2 * Math.PI * r;
-  // Each segment is shortened by gapSize so rounded caps don't overlap neighbors.
-  // The extra 3 creates a small visible gap between segments.
   const gapSize = strokeWidth + 3;
 
-  let cumulativeFrac = 0;
+  const naturalLens = segments.map((row) => (Number(row.value) / total) * circumference);
+  const boostedLens = naturalLens.map((l) => Math.max(l, gapSize));
+  const scaleFactor = circumference / boostedLens.reduce((s, l) => s + l, 0);
+  const displayLens = boostedLens.map((l) => l * scaleFactor);
+
   const slices = segments.map((row, i) => {
+    const startLen = displayLens.slice(0, i).reduce((s, l) => s + l, 0);
+    const displayLen = displayLens[i];
+    const isTiny = naturalLens[i] <= gapSize;
+    const midAngle = ((startLen + displayLen / 2) / circumference) * 2 * Math.PI - Math.PI / 2;
+    const dotX = cx + r * Math.cos(midAngle);
+    const dotY = cy + r * Math.sin(midAngle);
+    const dashLength = Math.max(0, displayLen - gapSize);
+    const dashOffset = circumference * (1 - startLen / circumference) - gapSize / 2;
     const frac = Number(row.value) / total;
-    const dashLength = Math.max(0, frac * circumference - gapSize);
-    const dashOffset = circumference * (1 - cumulativeFrac) - gapSize / 2;
-    cumulativeFrac += frac;
-    return { ...row, frac, dashLength, dashOffset, color: COLORS[i % COLORS.length] };
+    return { ...row, frac, dashLength, dashOffset, isTiny, dotX, dotY, color: COLORS[i % COLORS.length] };
   });
+
+  const h = hovered !== null ? slices[hovered] : null;
+  const fg = "hsl(var(--foreground))";
+  const muted = "hsl(var(--muted-foreground))";
 
   return (
     <div className="p-3 space-y-3">
-      <svg viewBox="0 0 160 160" className="w-full max-w-[180px] mx-auto">
+      <svg viewBox="0 0 160 160" className="w-full max-w-[180px] mx-auto" style={{ overflow: "visible" }}>
         {/* Track */}
         <circle cx={cx} cy={cy} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth={strokeWidth} opacity={0.2} />
-        {slices.map((s, i) => (
-          <circle
-            key={i}
-            cx={cx}
-            cy={cy}
-            r={r}
-            fill="none"
-            stroke={s.color}
-            strokeWidth={strokeWidth}
-            strokeDasharray={`${s.dashLength} ${circumference - s.dashLength}`}
-            strokeDashoffset={s.dashOffset}
-            strokeLinecap="round"
-            opacity={0.9}
-            transform={`rotate(-90, ${cx}, ${cy})`}
-          />
-        ))}
+
+        {slices.map((s, i) =>
+          s.isTiny ? (
+            <circle
+              key={i}
+              cx={s.dotX} cy={s.dotY}
+              r={hovered === i ? strokeWidth / 2 + 1.5 : strokeWidth / 2}
+              fill={s.color}
+              opacity={hovered !== null && hovered !== i ? 0.35 : 0.9}
+              style={{ cursor: "pointer", transition: "opacity 0.15s, r 0.15s" }}
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+            />
+          ) : (
+            <circle
+              key={i}
+              cx={cx} cy={cy} r={r}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={hovered === i ? strokeWidth + 3 : strokeWidth}
+              strokeDasharray={`${s.dashLength} ${circumference - s.dashLength}`}
+              strokeDashoffset={s.dashOffset}
+              strokeLinecap="round"
+              opacity={hovered !== null && hovered !== i ? 0.35 : 0.9}
+              transform={`rotate(-90, ${cx}, ${cy})`}
+              style={{ cursor: "pointer", transition: "opacity 0.15s, stroke-width 0.15s" }}
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+            />
+          )
+        )}
+
+        {/* Center hover label */}
+        {h ? (
+          <g pointerEvents="none">
+            <text x={cx} y={cy - 9} textAnchor="middle" fontSize="8" fill={muted}
+              style={{ fontFamily: "inherit" }}>
+              {h.group.length > 13 ? h.group.slice(0, 12) + "…" : h.group}
+            </text>
+            <text x={cx} y={cy + 5} textAnchor="middle" fontSize="14" fontWeight="600" fill={fg}
+              style={{ fontFamily: "inherit" }}>
+              {typeof h.value === "number" ? h.value.toLocaleString() : h.value}
+            </text>
+            <text x={cx} y={cy + 17} textAnchor="middle" fontSize="9" fill={muted}
+              style={{ fontFamily: "inherit" }}>
+              {(h.frac * 100).toFixed(1)}%
+            </text>
+          </g>
+        ) : null}
       </svg>
       {/* Legend */}
       <div className="space-y-1">
@@ -292,6 +339,8 @@ export function AggregatePanel({ result, view, onViewChange, fullWidth = false }
   const [groupByField, setGroupByField] = useState(() => smartGroupDefault(fields));
   const [aggFunc, setAggFunc] = useState<AggFunc>("COUNT");
   const [valueField, setValueField] = useState(() => smartValueDefault(fields));
+  const [sortBy, setSortBy] = useState<"group" | "value">("value");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [width, setWidth] = useState(DEFAULT_WIDTH);
 
   const isDragging = useRef(false);
@@ -322,16 +371,21 @@ export function AggregatePanel({ result, view, onViewChange, fullWidth = false }
 
   const needsValueField = NEEDS_VALUE.includes(aggFunc);
 
-  const rows = useMemo(
-    () =>
-      computeAggregate(
-        result.rows,
-        groupByField || null,
-        aggFunc,
-        needsValueField ? valueField || null : null
-      ),
-    [result.rows, groupByField, aggFunc, valueField, needsValueField]
-  );
+  const rows = useMemo(() => {
+    const raw = computeAggregate(
+      result.rows,
+      groupByField || null,
+      aggFunc,
+      needsValueField ? valueField || null : null
+    );
+    return [...raw].sort((a, b) => {
+      const cmp =
+        sortBy === "group"
+          ? String(a.group).localeCompare(String(b.group))
+          : Number(a.value) - Number(b.value);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [result.rows, groupByField, aggFunc, valueField, needsValueField, sortBy, sortDir]);
 
   const colAggLabel = aggLabel(aggFunc, needsValueField ? valueField : null);
 
@@ -381,6 +435,38 @@ export function AggregatePanel({ result, view, onViewChange, fullWidth = false }
                 </DropdownMenuItem>
               );
             })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="w-px h-3.5 bg-border shrink-0" />
+
+        {/* Sort */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors shrink-0">
+              <ArrowUpDown className="h-3 w-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel className="text-[10px]">Sort by</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {(["group", "value"] as const).map((by) =>
+              (["asc", "desc"] as const).map((dir) => {
+                const label =
+                  by === "group"
+                    ? dir === "asc" ? "Group  A → Z" : "Group  Z → A"
+                    : dir === "asc" ? "Value  ↑ low → high" : "Value  ↓ high → low";
+                return (
+                  <DropdownMenuItem
+                    key={by + dir}
+                    className={cn("text-xs", sortBy === by && sortDir === dir && "bg-accent")}
+                    onSelect={() => { setSortBy(by); setSortDir(dir); }}
+                  >
+                    {label}
+                  </DropdownMenuItem>
+                );
+              })
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
 
