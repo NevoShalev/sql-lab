@@ -4,29 +4,25 @@ import { useState } from "react";
 import {
   Plus,
   Trash2,
-  TestTube,
-  CheckCircle,
-  XCircle,
   Loader2,
   ChevronDown,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Field,
+  FieldDescription,
   FieldGroup,
   FieldLabel,
-  FieldSeparator,
-  FieldSet,
 } from "@/components/ui/field";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -63,6 +59,29 @@ function buildConnectionString(form: {
   return `postgresql://${encodedUser}:${encodedPass}@${form.host}:${form.port}/${form.database}${sslParam}`;
 }
 
+function parseConnectionString(str: string): Partial<{
+  host: string;
+  port: string;
+  database: string;
+  user: string;
+  password: string;
+  ssl: boolean;
+}> {
+  try {
+    const url = new URL(str.replace(/^postgres:\/\//, "postgresql://"));
+    return {
+      host: url.hostname || "localhost",
+      port: url.port || "5432",
+      database: url.pathname.replace(/^\//, "") || "postgres",
+      user: decodeURIComponent(url.username) || "postgres",
+      password: decodeURIComponent(url.password) || "",
+      ssl: url.searchParams.get("sslmode") === "require",
+    };
+  } catch {
+    return {};
+  }
+}
+
 const defaultForm = {
   name: "",
   host: "localhost",
@@ -86,19 +105,44 @@ export function ConnectionManager({
 }: ConnectionManagerProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [inputMode, setInputMode] = useState<"fields" | "string">("fields");
   const [form, setForm] = useState(defaultForm);
+  const [connString, setConnString] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
   const [testMessage, setTestMessage] = useState("");
 
   const activeConn = connections.find((c) => c.id === selectedConnectionId);
 
-  const handleTest = async () => {
-    setTesting(true);
+  const resetTest = () => {
     setTestResult(null);
     setTestMessage("");
+  };
+
+  const updateForm = (patch: Partial<typeof form>) => {
+    setForm((f) => ({ ...f, ...patch }));
+    resetTest();
+  };
+
+  const switchMode = (mode: "fields" | "string") => {
+    if (mode === "string" && inputMode === "fields") {
+      setConnString(buildConnectionString(form));
+    } else if (mode === "fields" && inputMode === "string") {
+      const parsed = parseConnectionString(connString);
+      setForm((f) => ({ ...f, ...parsed }));
+    }
+    setInputMode(mode);
+    resetTest();
+  };
+
+  const getEffectiveConnectionString = () =>
+    inputMode === "string" ? connString : buildConnectionString(form);
+
+  const handleTest = async () => {
+    setTesting(true);
+    resetTest();
     try {
-      const connectionString = buildConnectionString(form);
+      const connectionString = getEffectiveConnectionString();
       const res = await fetch("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -121,23 +165,30 @@ export function ConnectionManager({
   };
 
   const handleSave = () => {
-    const connectionString = buildConnectionString(form);
+    const connectionString = getEffectiveConnectionString();
+    const parsed = inputMode === "string" ? parseConnectionString(connString) : null;
     const conn: SavedConnection = {
       id: generateId(),
-      name: form.name || `${form.user}@${form.host}/${form.database}`,
-      host: form.host,
-      port: Number(form.port),
-      database: form.database,
-      user: form.user,
-      password: form.password,
-      ssl: form.ssl,
+      name:
+        form.name ||
+        (parsed
+          ? `${parsed.user ?? "postgres"}@${parsed.host ?? "localhost"}/${parsed.database ?? "postgres"}`
+          : `${form.user}@${form.host}/${form.database}`),
+      host: parsed?.host ?? form.host,
+      port: Number(parsed?.port ?? form.port),
+      database: parsed?.database ?? form.database,
+      user: parsed?.user ?? form.user,
+      password: parsed?.password ?? form.password,
+      ssl: parsed?.ssl ?? form.ssl,
       connectionString,
     };
     onConnectionsChange([...connections, conn]);
     onConnectionChange(conn);
     setDialogOpen(false);
     setForm(defaultForm);
-    setTestResult(null);
+    setConnString("");
+    setInputMode("fields");
+    resetTest();
   };
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
@@ -218,127 +269,176 @@ export function ConnectionManager({
       </DropdownMenu>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-[520px] flex flex-col max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              New Connection
-            </DialogTitle>
+            <DialogTitle>New Connection</DialogTitle>
             <DialogDescription>
               Configure a PostgreSQL database connection.
             </DialogDescription>
           </DialogHeader>
 
-          <FieldGroup className="py-2">
-            <FieldSet>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="name">Display Name</FieldLabel>
-                  <Input
-                    id="name"
-                    placeholder="My Database"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  />
-                </Field>
-                <div className="grid grid-cols-3 gap-3">
-                  <Field className="col-span-2">
-                    <FieldLabel htmlFor="host">Host</FieldLabel>
-                    <Input
-                      id="host"
-                      value={form.host}
-                      onChange={(e) => setForm({ ...form, host: e.target.value })}
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="port">Port</FieldLabel>
-                    <Input
-                      id="port"
-                      value={form.port}
-                      onChange={(e) => setForm({ ...form, port: e.target.value })}
-                    />
-                  </Field>
-                </div>
-                <Field>
-                  <FieldLabel htmlFor="database">Database</FieldLabel>
-                  <Input
-                    id="database"
-                    value={form.database}
-                    onChange={(e) => setForm({ ...form, database: e.target.value })}
-                  />
-                </Field>
-              </FieldGroup>
-            </FieldSet>
+          <div className="overflow-y-auto flex-1 -mx-6 px-6">
+            <FieldGroup className="py-2">
 
-            <FieldSeparator />
+              {/* Name */}
+              <Field>
+                <FieldLabel htmlFor="conn-name" className="font-semibold">Name</FieldLabel>
+                <Input
+                  id="conn-name"
+                  placeholder="My Database"
+                  value={form.name}
+                  onChange={(e) => updateForm({ name: e.target.value })}
+                  className="h-8 rounded-xl text-sm"
+                />
+              </Field>
 
-            <FieldSet>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="user">Username</FieldLabel>
-                  <Input
-                    id="user"
-                    value={form.user}
-                    onChange={(e) => setForm({ ...form, user: e.target.value })}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  />
-                </Field>
-                <Field orientation="horizontal">
-                  <Checkbox
-                    id="ssl"
-                    checked={form.ssl}
-                    onChange={(e) => setForm({ ...form, ssl: (e.target as HTMLInputElement).checked })}
-                  />
-                  <FieldLabel htmlFor="ssl" className="font-normal cursor-pointer">
-                    Require SSL
-                  </FieldLabel>
-                </Field>
-              </FieldGroup>
-            </FieldSet>
-
-            {testResult && (
-              <div
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2.5 text-sm",
-                  testResult === "success"
-                    ? "bg-green-950 text-green-400"
-                    : "bg-red-950 text-red-400"
-                )}
-              >
-                {testResult === "success" ? (
-                  <CheckCircle className="h-4 w-4 shrink-0" />
-                ) : (
-                  <XCircle className="h-4 w-4 shrink-0" />
-                )}
-                <span className="truncate">{testMessage}</span>
+              {/* Mode toggle */}
+              <div className="inline-flex h-9 w-full rounded-xl border border-input bg-muted/40 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => switchMode("fields")}
+                  className={cn(
+                    "flex-1 rounded-lg text-sm font-medium transition-all",
+                    inputMode === "fields"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Input Credentials
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchMode("string")}
+                  className={cn(
+                    "flex-1 rounded-lg text-sm font-medium transition-all",
+                    inputMode === "string"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Connection String
+                </button>
               </div>
-            )}
-          </FieldGroup>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={handleTest}
-              disabled={testing}
-            >
-              {testing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+              {inputMode === "fields" ? (
+                <FieldGroup>
+                  {/* Host + Port */}
+                  <div className="grid grid-cols-[1fr_88px] gap-3">
+                    <Field>
+                      <FieldLabel htmlFor="conn-host" className="font-semibold">Host</FieldLabel>
+                      <Input
+                        id="conn-host"
+                        value={form.host}
+                        onChange={(e) => updateForm({ host: e.target.value })}
+                        className="h-8 rounded-xl text-sm"
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="conn-port" className="font-semibold">Port</FieldLabel>
+                      <Input
+                        id="conn-port"
+                        value={form.port}
+                        onChange={(e) => updateForm({ port: e.target.value })}
+                        className="h-8 rounded-xl text-sm"
+                      />
+                    </Field>
+                  </div>
+
+                  <Field>
+                    <FieldLabel htmlFor="conn-database" className="font-semibold">Database</FieldLabel>
+                    <Input
+                      id="conn-database"
+                      value={form.database}
+                      onChange={(e) => updateForm({ database: e.target.value })}
+                      className="h-8 rounded-xl text-sm"
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="conn-user" className="font-semibold">Username</FieldLabel>
+                    <Input
+                      id="conn-user"
+                      value={form.user}
+                      onChange={(e) => updateForm({ user: e.target.value })}
+                      className="h-8 rounded-xl text-sm"
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="conn-password" className="font-semibold">Password</FieldLabel>
+                    <Input
+                      id="conn-password"
+                      type="password"
+                      value={form.password}
+                      onChange={(e) => updateForm({ password: e.target.value })}
+                      className="h-8 rounded-xl text-sm"
+                    />
+                  </Field>
+
+                  <Field orientation="horizontal">
+                    <Checkbox
+                      id="conn-ssl"
+                      checked={form.ssl}
+                      onChange={(e) =>
+                        updateForm({ ssl: (e.target as HTMLInputElement).checked })
+                      }
+                    />
+                    <FieldLabel htmlFor="conn-ssl" className="font-normal cursor-pointer">
+                      Require SSL
+                    </FieldLabel>
+                  </Field>
+                </FieldGroup>
               ) : (
-                <TestTube className="h-4 w-4" />
+                <Field>
+                  <FieldLabel htmlFor="conn-string" className="font-semibold">Connection String</FieldLabel>
+                  <textarea
+                    id="conn-string"
+                    rows={3}
+                    spellCheck={false}
+                    placeholder="postgresql://user:password@localhost:5432/mydb"
+                    value={connString}
+                    onChange={(e) => {
+                      setConnString(e.target.value);
+                      resetTest();
+                    }}
+                    className="flex w-full rounded-xl border border-input bg-muted/60 px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono resize-none"
+                  />
+                  <FieldDescription>
+                    postgresql://user:password@host:port/database
+                  </FieldDescription>
+                </Field>
               )}
-              Test
-            </Button>
-            <Button onClick={handleSave}>
-              Save & Connect
-            </Button>
-          </DialogFooter>
+
+
+            </FieldGroup>
+          </div>
+
+          {/* Footer */}
+          <div className="pt-4 border-t border-border flex items-center gap-3">
+            {testResult === "success" ? (
+              <Button onClick={handleSave} className="w-36">
+                Save & Connect
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleTest}
+                  disabled={testing}
+                  className="w-36"
+                >
+                  {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {testing ? "Testing…" : "Test Connection"}
+                </Button>
+                {testResult === "error" && (
+                  <span className="flex items-center gap-1.5 text-xs text-red-400 truncate">
+                    <XCircle className="h-3.5 w-3.5 shrink-0" />
+                    {testMessage}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
