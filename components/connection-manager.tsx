@@ -121,7 +121,8 @@ export function ConnectionManager({
 
   const updateForm = (patch: Partial<typeof form>) => {
     setForm((f) => ({ ...f, ...patch }));
-    resetTest();
+    const connectionKeys: (keyof typeof form)[] = ["host", "port", "database", "user", "password", "ssl"];
+    if (connectionKeys.some((k) => k in patch)) resetTest();
   };
 
   const switchMode = (mode: "fields" | "string") => {
@@ -136,7 +137,7 @@ export function ConnectionManager({
   };
 
   const getEffectiveConnectionString = () =>
-    inputMode === "string" ? connString : buildConnectionString(form);
+    inputMode === "string" ? connString.replace(/[\r\n]+/g, '').trim() : buildConnectionString(form);
 
   const handleTest = async () => {
     setTesting(true);
@@ -282,7 +283,9 @@ export function ConnectionManager({
 
               {/* Name */}
               <Field>
-                <FieldLabel htmlFor="conn-name" className="font-semibold">Name</FieldLabel>
+                <FieldLabel htmlFor="conn-name" className="font-semibold">
+                  Name <span className="text-destructive">*</span>
+                </FieldLabel>
                 <Input
                   id="conn-name"
                   placeholder="My Database"
@@ -398,7 +401,7 @@ export function ConnectionManager({
                     placeholder="postgresql://user:password@localhost:5432/mydb"
                     value={connString}
                     onChange={(e) => {
-                      setConnString(e.target.value);
+                      setConnString(e.target.value.replace(/[\r\n]+/g, '').trim());
                       resetTest();
                     }}
                     className="flex w-full rounded-xl border border-input bg-muted/60 px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono resize-none"
@@ -416,7 +419,12 @@ export function ConnectionManager({
           {/* Footer */}
           <div className="pt-4 border-t border-border flex items-center gap-3">
             {testResult === "success" ? (
-              <Button onClick={handleSave} className="w-36">
+              <Button
+                onClick={handleSave}
+                disabled={!form.name.trim()}
+                className="w-36"
+                title={!form.name.trim() ? "Name is required" : undefined}
+              >
                 Save & Connect
               </Button>
             ) : (
