@@ -11,9 +11,13 @@ export const metadata: Metadata = {
   title: "SQL Lab",
   description: "A powerful SQL query editor and database explorer",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
+    icon: [
+      { url: "/favicon-32x32.png?v=3", type: "image/png", sizes: "32x32" },
+      { url: "/favicon-16x16.png?v=3", type: "image/png", sizes: "16x16" },
+      { url: "/favicon.ico?v=3", sizes: "any" },
+    ],
+    shortcut: "/favicon.ico?v=3",
+    apple: { url: "/apple-touch-icon.png?v=3", sizes: "180x180", type: "image/png" },
   },
 };
 
