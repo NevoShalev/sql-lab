@@ -14,6 +14,7 @@ import {
   Check,
   X,
   Filter,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -119,26 +120,34 @@ function AiErrorSuggestion({
   result,
   schema,
   onApplyFix,
+  autoFetch,
+  initialAnalysis,
+  onAnalysisDone,
 }: {
   result: QueryResult;
   schema: SchemaData | null;
   onApplyFix?: (sql: string) => void;
+  autoFetch: boolean;
+  initialAnalysis?: AiAnalysis | null;
+  onAnalysisDone?: (resultId: string, analysis: AiAnalysis) => void;
 }) {
-  const [analysis, setAnalysis] = useState<AiAnalysis | null>(null);
+  const [analysis, setAnalysis] = useState<AiAnalysis | null>(initialAnalysis ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Fetch AI analysis when the result changes
+  // Sync initialAnalysis when switching tabs (parent passes cached value)
   useEffect(() => {
-    if (!result.error || !result.sql) return;
+    setAnalysis(initialAnalysis ?? null);
+    setError(null);
+  }, [result.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const runFetch = useCallback(() => {
+    if (!result.error || !result.sql) return;
     let cancelled = false;
     setLoading(true);
     setAnalysis(null);
     setError(null);
-
-    const schemaContext = buildSchemaContext(schema);
 
     fetch("/api/analyze-error", {
       method: "POST",
@@ -149,7 +158,7 @@ function AiErrorSuggestion({
         errorPosition: result.errorPosition,
         errorDetail: result.errorDetail,
         errorHint: result.errorHint,
-        schemaContext,
+        schemaContext: buildSchemaContext(schema),
       }),
     })
       .then(async (res) => {
@@ -159,17 +168,19 @@ function AiErrorSuggestion({
           setError(data.error);
         } else {
           setAnalysis(data);
+          onAnalysisDone?.(result.id, data);
         }
       })
-      .catch(() => {
-        if (!cancelled) setError("Failed to get AI analysis");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .catch(() => { if (!cancelled) setError("Failed to get AI analysis"); })
+      .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
   }, [result.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Only auto-fetch when this is a fresh run result
+  useEffect(() => {
+    if (autoFetch) return runFetch();
+  }, [result.id, autoFetch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCopyFix = useCallback(() => {
     if (analysis?.fixedSql) {
@@ -192,7 +203,10 @@ function AiErrorSuggestion({
     return (
       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border">
         <Sparkles className="h-4 w-4 text-muted-foreground shrink-0" />
-        <p className="text-xs text-muted-foreground">{error}</p>
+        <p className="text-xs text-muted-foreground flex-1">{error}</p>
+        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={runFetch}>
+          <RefreshCw className="h-3 w-3" />
+        </Button>
       </div>
     );
   }
@@ -201,9 +215,14 @@ function AiErrorSuggestion({
 
   return (
     <div className="flex items-start gap-3 p-3 rounded-lg bg-violet-500/5 border border-violet-500/20">
-        <Sparkles className="h-4 w-4 text-violet-400 shrink-0" />
+        <Sparkles className="h-4 w-4 text-violet-400 shrink-0 mt-0.5" />
         <div className="space-y-2 min-w-0 flex-1">
-          <p className="text-xs font-medium text-violet-400">AI Error Assist</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-violet-400">AI Error Assist</p>
+            <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-violet-400" onClick={runFetch}>
+              <RefreshCw className="h-3 w-3" />
+            </Button>
+          </div>
           {analysis.explanation && (
             <p className="text-sm text-foreground/90">{analysis.explanation}</p>
           )}
@@ -615,10 +634,13 @@ interface QueryResultsProps {
   onApplyFix?: (sql: string) => void;
   onHasActiveFiltersChange?: (has: boolean) => void;
   clearFiltersRef?: React.MutableRefObject<() => void>;
+  lastRunResultId?: string | null;
+  analysisCache?: Record<string, AiAnalysis>;
+  onAnalysisCacheUpdate?: (id: string, analysis: AiAnalysis) => void;
 }
 
 
-export function QueryResults({ result, isRunning, schema, onApplyFix, onHasActiveFiltersChange, clearFiltersRef }: QueryResultsProps) {
+export function QueryResults({ result, isRunning, schema, onApplyFix, onHasActiveFiltersChange, clearFiltersRef, lastRunResultId, analysisCache = {}, onAnalysisCacheUpdate }: QueryResultsProps) {
   const [sort, setSort] = useState<SortState>(null);
   const [page, setPage] = useState(0);
   const [displayLimit, setDisplayLimit] = useState(INITIAL_DISPLAY_ROWS);
@@ -741,6 +763,9 @@ export function QueryResults({ result, isRunning, schema, onApplyFix, onHasActiv
           result={result}
           schema={schema ?? null}
           onApplyFix={onApplyFix}
+          autoFetch={result.id === lastRunResultId && !analysisCache[result.id]}
+          initialAnalysis={analysisCache[result.id]}
+          onAnalysisDone={onAnalysisCacheUpdate}
         />
       </div>
     );

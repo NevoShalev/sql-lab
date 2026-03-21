@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
-import { RefreshCw, Loader2, Plus, X, PanelLeftClose, PanelLeftOpen, Sun, Moon, Monitor } from "lucide-react";
+import { RefreshCw, Loader2, Plus, ChevronDown, PanelLeftClose, PanelLeftOpen, Sun, Moon, Monitor, Pencil, Trash2, TriangleAlert } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   ResizablePanelGroup,
@@ -15,6 +15,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConnectionManager } from "@/components/connection-manager";
@@ -33,6 +34,7 @@ const STORAGE_KEY = "sql-lab-connections";
 const TABS_STORAGE_KEY = "sql-lab-tabs";
 const ACTIVE_TAB_STORAGE_KEY = "sql-lab-active-tab";
 const SIDEBAR_COLLAPSED_KEY = "sql-lab-sidebar-collapsed";
+const AI_ANALYSIS_CACHE_KEY = "sql-lab-ai-analysis-cache";
 
 function loadSidebarCollapsed(): boolean {
   try {
@@ -136,6 +138,15 @@ function loadActiveTabId(tabs: QueryTab[]): string {
   return tabs[0].id;
 }
 
+function loadAiAnalysisCache(): Record<string, object> {
+  try {
+    const stored = typeof window !== "undefined" ? localStorage.getItem(AI_ANALYSIS_CACHE_KEY) : null;
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
 const _initTabs = loadTabs();
 const _initActiveTabId = loadActiveTabId(_initTabs);
 const _initActiveConnectionId = _initTabs.find((t) => t.id === _initActiveTabId)?.connectionId;
@@ -143,6 +154,7 @@ const _initSchemaCache = loadSchemaCache(_initActiveConnectionId);
 const _initTabResults = loadResultsCache();
 const _initHistoryCache = loadHistoryCache();
 const _initBottomTab = loadBottomTab();
+const _initAiAnalysisCache = loadAiAnalysisCache();
 
 export default function Home() {
   // Connections — source of truth
@@ -169,6 +181,9 @@ export default function Home() {
   const [hasActiveFilters, setHasActiveFilters] = useState(false);
   const clearFiltersRef = useRef<() => void>(() => {});
   const [isRunning, setIsRunning] = useState(false);
+  const [runningTabId, setRunningTabId] = useState<string | null>(null);
+  const [lastRunResultId, setLastRunResultId] = useState<string | null>(null);
+  const [analysisCache, setAnalysisCache] = useState<Record<string, object>>(_initAiAnalysisCache);
   const abortControllerRef = useRef<AbortController | null>(null);
   const sidebarRef = useRef<ImperativePanelHandle>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(_initSidebarCollapsed);
@@ -193,6 +208,37 @@ export default function Home() {
   // Inline tab rename state
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  // Tab drag-to-reorder state
+  const [dragTabId, setDragTabId] = useState<string | null>(null);
+  const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
+
+  const handleTabDragStart = (e: React.DragEvent, id: string) => {
+    setDragTabId(id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const handleTabDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (id !== dragTabId) setDragOverTabId(id);
+  };
+  const handleTabDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!dragTabId || dragTabId === targetId) return;
+    const from = tabs.findIndex((t) => t.id === dragTabId);
+    const to = tabs.findIndex((t) => t.id === targetId);
+    const reordered = [...tabs];
+    reordered.splice(to, 0, reordered.splice(from, 1)[0]);
+    setTabs(reordered);
+    setDragTabId(null);
+    setDragOverTabId(null);
+  };
+  const handleTabDragEnd = () => {
+    setDragTabId(null);
+    setDragOverTabId(null);
+  };
 
   const startRename = (e: React.MouseEvent, tab: QueryTab) => {
     e.stopPropagation();
@@ -344,6 +390,7 @@ export default function Home() {
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
       setIsRunning(true);
+      setRunningTabId(tabId);
       setBottomTab("results");
 
       try {
@@ -371,6 +418,7 @@ export default function Home() {
           errorHint: data.hint,
         };
         setTabResults((prev) => ({ ...prev, [tabId]: result }));
+        setLastRunResultId(result.id);
         setHistory((prev) => [result, ...prev].slice(0, 200));
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
@@ -399,11 +447,13 @@ export default function Home() {
             error: "Network error — could not reach the server",
           };
           setTabResults((prev) => ({ ...prev, [tabId]: result }));
+          setLastRunResultId(result.id);
           setHistory((prev) => [result, ...prev]);
         }
       } finally {
         abortControllerRef.current = null;
         setIsRunning(false);
+        setRunningTabId(null);
       }
     },
     [] // stable — reads conn and tabId via refs at call time
@@ -530,18 +580,30 @@ export default function Home() {
 
           {/* Full-width tab bar */}
           <div className="flex items-center flex-1 min-w-0 overflow-x-auto self-stretch">
-            {tabs.map((tab) => (
+            {tabs.map((tab, index) => (
               <div
                 key={tab.id}
+                draggable={renamingId !== tab.id}
+                onDragStart={(e) => handleTabDragStart(e, tab.id)}
+                onDragOver={(e) => handleTabDragOver(e, tab.id)}
+                onDrop={(e) => handleTabDrop(e, tab.id)}
+                onDragEnd={handleTabDragEnd}
                 className={cn(
-                  "group flex items-center gap-1.5 px-3 self-stretch text-xs cursor-pointer border-r border-border shrink-0 max-w-[180px] transition-colors",
+                  "group flex items-center px-3 self-stretch text-xs cursor-pointer border-r border-border shrink-0 max-w-[180px] transition-colors",
                   "border-b-2",
+                  index === 0 && "border-l border-border",
                   tab.id === activeTabId
                     ? "bg-background text-foreground border-b-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/40 border-b-transparent"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/40 border-b-transparent",
+                  dragTabId === tab.id && "opacity-40",
+                  dragOverTabId === tab.id && "border-l-2 border-l-primary",
                 )}
                 onClick={() => {
                   if (renamingId !== tab.id) setActiveTabId(tab.id);
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setOpenDropdownId(tab.id);
                 }}
               >
                 {renamingId === tab.id ? (
@@ -556,44 +618,92 @@ export default function Home() {
                     }}
                     onClick={(e) => e.stopPropagation()}
                     className="bg-transparent outline-none text-xs text-foreground min-w-0"
-                    style={{ width: `${Math.max(renameValue.length + 1, 5)}ch` }}
+                    style={{ width: `${Math.max(renameValue.length, 4)}ch` }}
                   />
                 ) : (
-                  <span
-                    className="truncate select-none"
-                    onDoubleClick={(e) => startRename(e, tab)}
-                    title="Double-click to rename"
-                  >
-                    {tab.name}
+                  <span className="flex items-center gap-1.5 flex-1 min-w-0">
+                    {(() => {
+                      const isTabRunning = runningTabId === tab.id;
+                      const result = tabResults[tab.id];
+                      if (isTabRunning) return <span className="w-2 h-2 rounded-full bg-yellow-400 shrink-0 animate-pulse" />;
+                      if (!result) return <span className="w-2 h-2 rounded-full bg-muted-foreground/30 shrink-0" />;
+                      if (result.error) return <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />;
+                      return <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />;
+                    })()}
+                    <span
+                      className="truncate select-none"
+                      onDoubleClick={(e) => startRename(e, tab)}
+                      title="Double-click to rename"
+                    >
+                      {tab.name}
+                    </span>
                   </span>
                 )}
-                {tabs.length > 1 && renamingId !== tab.id && (
-                  <button
-                    className="opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-destructive transition-opacity shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTabClose(tab.id);
+                {renamingId !== tab.id && (
+                  <DropdownMenu
+                    open={openDropdownId === tab.id}
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        setConfirmingDeleteId(null);
+                        setOpenDropdownId(null);
+                      }
                     }}
                   >
-                    <X className="h-3 w-3" />
-                  </button>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="ml-1.5 shrink-0 opacity-60 hover:opacity-100 transition-opacity md:opacity-0 md:pointer-events-none md:w-0 md:overflow-hidden md:ml-0"
+                        onClick={(e) => { e.stopPropagation(); setOpenDropdownId(tab.id); }}
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-[140px]">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startRename(e, tab);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Rename
+                      </DropdownMenuItem>
+                      {tabs.length > 1 && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-red-400 focus:text-red-400"
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              if (confirmingDeleteId === tab.id) {
+                                handleTabClose(tab.id);
+                                setConfirmingDeleteId(null);
+                              } else {
+                                setConfirmingDeleteId(tab.id);
+                              }
+                            }}
+                          >
+                            {confirmingDeleteId === tab.id
+                              ? <TriangleAlert className="h-3.5 w-3.5 shrink-0" />
+                              : <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                            }
+                            {confirmingDeleteId === tab.id ? "Confirm" : "Delete"}
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
               </div>
             ))}
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 mx-1 shrink-0 self-center"
-                  onClick={handleTabAdd}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>New tab</TooltipContent>
-            </Tooltip>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 mx-1 shrink-0 self-center"
+              onClick={handleTabAdd}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
           </div>
 
           {/* Theme toggle */}
@@ -793,6 +903,15 @@ export default function Home() {
                             }}
                             onHasActiveFiltersChange={setHasActiveFilters}
                             clearFiltersRef={clearFiltersRef}
+                            lastRunResultId={lastRunResultId}
+                            analysisCache={analysisCache}
+                            onAnalysisCacheUpdate={(id, a) => {
+                              setAnalysisCache((prev) => {
+                                const next = { ...prev, [id]: a };
+                                localStorage.setItem(AI_ANALYSIS_CACHE_KEY, JSON.stringify(next));
+                                return next;
+                              });
+                            }}
                           />
                         ) : (
                           <QueryHistory

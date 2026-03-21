@@ -31,6 +31,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { SavedConnection } from "@/lib/types";
 
@@ -211,7 +213,7 @@ export function ConnectionManager({
             <span className="flex items-center gap-2 min-w-0 truncate">
               {activeConn ? (
                 <>
-                  <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-green-400" />
+                  <span className="shrink-0 w-2 h-2 rounded-full bg-green-400" />
                   <span className="truncate">{activeConn.name}</span>
                 </>
               ) : (
@@ -236,7 +238,7 @@ export function ConnectionManager({
             >
               <span
                 className={cn(
-                  "shrink-0 w-1.5 h-1.5 rounded-full",
+                  "shrink-0 w-2 h-2 rounded-full",
                   conn.id === selectedConnectionId
                     ? "bg-green-400"
                     : "bg-transparent border border-border"
@@ -255,7 +257,7 @@ export function ConnectionManager({
               </Button>
             </DropdownMenuItem>
           ))}
-          <DropdownMenuSeparator />
+          {connections.length > 0 && <DropdownMenuSeparator />}
           <DropdownMenuItem
             onSelect={() => {
               setDropdownOpen(false);
@@ -296,32 +298,16 @@ export function ConnectionManager({
               </Field>
 
               {/* Mode toggle */}
-              <div className="inline-flex h-9 w-full rounded-xl border border-input bg-muted/40 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => switchMode("fields")}
-                  className={cn(
-                    "flex-1 rounded-lg text-sm font-medium transition-all",
-                    inputMode === "fields"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Input Credentials
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchMode("string")}
-                  className={cn(
-                    "flex-1 rounded-lg text-sm font-medium transition-all",
-                    inputMode === "string"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Connection String
-                </button>
-              </div>
+              <Tabs
+                value={inputMode}
+                onValueChange={(v) => switchMode(v as "fields" | "string")}
+                className="w-full"
+              >
+                <TabsList className="w-full">
+                  <TabsTrigger value="fields" className="flex-1">Input Credentials</TabsTrigger>
+                  <TabsTrigger value="string" className="flex-1">Connection String</TabsTrigger>
+                </TabsList>
+              </Tabs>
 
               {inputMode === "fields" ? (
                 <FieldGroup>
@@ -394,7 +380,7 @@ export function ConnectionManager({
               ) : (
                 <Field>
                   <FieldLabel htmlFor="conn-string" className="font-semibold">Connection String</FieldLabel>
-                  <textarea
+                  <Textarea
                     id="conn-string"
                     rows={3}
                     spellCheck={false}
@@ -404,7 +390,7 @@ export function ConnectionManager({
                       setConnString(e.target.value.replace(/[\r\n]+/g, '').trim());
                       resetTest();
                     }}
-                    className="flex w-full rounded-xl border border-input bg-muted/60 px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono resize-none"
+                    className="font-mono"
                   />
                   <FieldDescription>
                     postgresql://user:password@host:port/database
@@ -421,9 +407,9 @@ export function ConnectionManager({
             {testResult === "success" ? (
               <Button
                 onClick={handleSave}
-                disabled={!form.name.trim()}
+                disabled={inputMode === "fields" && !form.name.trim()}
                 className="w-36"
-                title={!form.name.trim() ? "Name is required" : undefined}
+                title={inputMode === "fields" && !form.name.trim() ? "Name is required" : undefined}
               >
                 Save & Connect
               </Button>

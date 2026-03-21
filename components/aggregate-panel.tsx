@@ -129,9 +129,17 @@ const COLORS = [
 
 // ─── Bar chart ────────────────────────────────────────────────────────────────
 
-function BarChartView({ rows }: { rows: { group: string; value: number | string }[] }) {
+function BarChartView({ rows, aggFunc }: { rows: { group: string; value: number | string }[]; aggFunc: AggFunc }) {
   const top = rows.slice(0, 20);
   const maxVal = Math.max(...top.map((r) => Number(r.value)), 1);
+  const vals = rows.map((r) => Number(r.value));
+  const total = aggFunc === "AVG"
+    ? vals.reduce((s, v) => s + v, 0) / (vals.length || 1)
+    : aggFunc === "MIN"
+    ? Math.min(...vals)
+    : aggFunc === "MAX"
+    ? Math.max(...vals)
+    : vals.reduce((s, v) => s + v, 0);
   return (
     <div className="p-3 space-y-1.5">
       {top.map((row, i) => (
@@ -162,6 +170,16 @@ function BarChartView({ rows }: { rows: { group: string; value: number | string 
           +{rows.length - 20} more
         </p>
       )}
+      {/* Total */}
+      <div className="flex items-center gap-2 min-w-0 pt-1 border-t border-border/40 mt-1">
+        <div className="w-20 text-[11px] text-muted-foreground text-right shrink-0">
+          {aggFunc === "AVG" ? "avg" : aggFunc === "MIN" ? "min" : aggFunc === "MAX" ? "max" : "total"}
+        </div>
+        <div className="flex-1 min-w-0" />
+        <span className="text-[11px] font-mono tabular-nums font-medium text-foreground shrink-0 w-10 text-right">
+          {Number.isInteger(total) ? total.toLocaleString() : total.toFixed(2)}
+        </span>
+      </div>
     </div>
   );
 }
@@ -171,9 +189,12 @@ function BarChartView({ rows }: { rows: { group: string; value: number | string 
 function PieChartView({ rows }: { rows: { group: string; value: number | string }[] }) {
   const [hovered, setHovered] = useState<number | null>(null);
 
-  const top8 = rows.slice(0, 8);
-  const othersVal = rows.slice(8).reduce((s, r) => s + Number(r.value), 0);
-  const segments = othersVal > 0 ? [...top8, { group: "Others", value: othersVal }] : top8;
+  // Show all individually if ≤ 12 groups, otherwise top 11 + Others
+  const limit = rows.length <= 12 ? rows.length : 11;
+  const topRows = rows.slice(0, limit);
+  const otherRows = rows.slice(limit);
+  const othersVal = otherRows.reduce((s, r) => s + Number(r.value), 0);
+  const segments = othersVal > 0 ? [...topRows, { group: "Others", value: othersVal }] : topRows;
   const total = segments.reduce((s, r) => s + Number(r.value), 0) || 1;
 
   const cx = 80, cy = 80, r = 58, strokeWidth = 11;
@@ -195,7 +216,8 @@ function PieChartView({ rows }: { rows: { group: string; value: number | string 
     const dashLength = Math.max(0, displayLen - gapSize);
     const dashOffset = circumference * (1 - startLen / circumference) - gapSize / 2;
     const frac = Number(row.value) / total;
-    return { ...row, frac, dashLength, dashOffset, isTiny, dotX, dotY, color: COLORS[i % COLORS.length] };
+    const color = row.group === "Others" ? "hsl(var(--muted-foreground) / 0.9)" : COLORS[i % COLORS.length];
+    return { ...row, frac, dashLength, dashOffset, isTiny, dotX, dotY, color };
   });
 
   const h = hovered !== null ? slices[hovered] : null;
@@ -239,39 +261,55 @@ function PieChartView({ rows }: { rows: { group: string; value: number | string 
           )
         )}
 
-        {/* Center hover label */}
-        {h ? (
-          <g pointerEvents="none">
-            <text x={cx} y={cy - 9} textAnchor="middle" fontSize="8" fill={muted}
-              style={{ fontFamily: "inherit" }}>
-              {h.group.length > 13 ? h.group.slice(0, 12) + "…" : h.group}
-            </text>
-            <text x={cx} y={cy + 5} textAnchor="middle" fontSize="14" fontWeight="600" fill={fg}
-              style={{ fontFamily: "inherit" }}>
-              {typeof h.value === "number" ? h.value.toLocaleString() : h.value}
-            </text>
-            <text x={cx} y={cy + 17} textAnchor="middle" fontSize="9" fill={muted}
+        {/* Center label — value and name stay fixed; % appends below on hover */}
+        <g pointerEvents="none">
+          {/* Value / Total — fixed position, centered above midpoint */}
+          <text x={cx} y={cy - 7} textAnchor="middle" dominantBaseline="central" fontSize="14" fontWeight="600" fill={fg}
+            style={{ fontFamily: "inherit" }}>
+            {h
+              ? (typeof h.value === "number" ? h.value.toLocaleString() : h.value)
+              : total.toLocaleString()}
+          </text>
+          {/* Name / "total" label — fixed position, centered below midpoint */}
+          <text x={cx} y={cy + 7} textAnchor="middle" dominantBaseline="central" fontSize="10" fill={h ? fg : muted}
+            style={{ fontFamily: "inherit" }}>
+            {h ? (h.group.length > 13 ? h.group.slice(0, 12) + "…" : h.group) : "total"}
+          </text>
+          {/* Percentage — only on hover, below the name */}
+          {h && (
+            <text x={cx} y={cy + 19} textAnchor="middle" dominantBaseline="central" fontSize="9" fill={muted}
               style={{ fontFamily: "inherit" }}>
               {(h.frac * 100).toFixed(1)}%
             </text>
-          </g>
-        ) : null}
+          )}
+        </g>
       </svg>
       {/* Legend */}
       <div className="space-y-1">
         {slices.map((s, i) => (
-          <div key={i} className="flex items-center gap-2 min-w-0">
-            <span
-              className="h-2.5 w-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: s.color }}
-            />
-            <span className="text-[11px] text-muted-foreground truncate flex-1">{s.group}</span>
-            <span className="text-[11px] font-mono tabular-nums text-muted-foreground shrink-0">
-              {typeof s.value === "number" ? s.value.toLocaleString() : s.value}
-            </span>
-            <span className="text-[11px] font-mono tabular-nums text-foreground shrink-0 w-10 text-right">
-              {(s.frac * 100).toFixed(1)}%
-            </span>
+          <div key={i}>
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className="h-2.5 w-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: s.color }}
+              />
+              <span className="text-[11px] text-muted-foreground truncate flex-1">{s.group}</span>
+              <span className="text-[11px] font-mono tabular-nums text-muted-foreground shrink-0">
+                {typeof s.value === "number" ? s.value.toLocaleString() : s.value}
+              </span>
+              <span className="text-[11px] font-mono tabular-nums text-foreground shrink-0 w-10 text-right">
+                {(s.frac * 100).toFixed(1)}%
+              </span>
+            </div>
+            {/* Sub-items for "Others" — listed without a dot */}
+            {s.group === "Others" && otherRows.map((r, j) => (
+              <div key={j} className="flex items-center gap-2 min-w-0 pl-4 mt-0.5">
+                <span className="text-[10px] text-muted-foreground/50 truncate flex-1">{r.group}</span>
+                <span className="text-[10px] font-mono tabular-nums text-muted-foreground/50 shrink-0">
+                  {typeof r.value === "number" ? r.value.toLocaleString() : r.value}
+                </span>
+              </div>
+            ))}
           </div>
         ))}
       </div>
@@ -281,8 +319,16 @@ function PieChartView({ rows }: { rows: { group: string; value: number | string 
 
 // ─── Table view ───────────────────────────────────────────────────────────────
 
-function TableView({ rows }: { rows: { group: string; value: number | string }[] }) {
-  const total = rows.reduce((s, r) => s + Number(r.value), 0);
+function TableView({ rows, aggFunc }: { rows: { group: string; value: number | string }[]; aggFunc: AggFunc }) {
+  const vals = rows.map((r) => Number(r.value));
+  const total = aggFunc === "AVG"
+    ? vals.reduce((s, v) => s + v, 0) / (vals.length || 1)
+    : aggFunc === "MIN"
+    ? Math.min(...vals)
+    : aggFunc === "MAX"
+    ? Math.max(...vals)
+    : vals.reduce((s, v) => s + v, 0);
+  const totalLabel = aggFunc === "AVG" ? "Avg" : aggFunc === "MIN" ? "Min" : aggFunc === "MAX" ? "Max" : "Total";
   const allNumeric = rows.every((r) => typeof r.value === "number" || !isNaN(Number(r.value)));
   return (
     <table className="w-full text-xs table-fixed">
@@ -307,9 +353,9 @@ function TableView({ rows }: { rows: { group: string; value: number | string }[]
         ))}
         {allNumeric && rows.length > 1 && (
           <tr className="border-t-2 border-border bg-muted/30 font-medium">
-            <td className="px-2 py-1.5 text-foreground/60 text-[11px]">Total</td>
+            <td className="px-2 py-1.5 text-foreground/60 text-[11px]">{totalLabel}</td>
             <td className="px-2 py-1.5 text-right font-mono tabular-nums text-foreground">
-              {total.toLocaleString()}
+              {Number.isInteger(total) ? total.toLocaleString() : total.toFixed(3)}
             </td>
           </tr>
         )}
@@ -523,9 +569,9 @@ export function AggregatePanel({ result, view, onViewChange, fullWidth = false }
         {rows.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-6 px-3">No results</p>
         ) : view === "table" ? (
-          <TableView rows={rows} />
+          <TableView rows={rows} aggFunc={aggFunc} />
         ) : view === "bar" ? (
-          <BarChartView rows={rows} />
+          <BarChartView rows={rows} aggFunc={aggFunc} />
         ) : (
           <PieChartView rows={rows} />
         )}
