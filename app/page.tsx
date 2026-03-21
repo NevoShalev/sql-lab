@@ -138,7 +138,8 @@ function loadActiveTabId(tabs: QueryTab[]): string {
   return tabs[0].id;
 }
 
-function loadAiAnalysisCache(): Record<string, object> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function loadAiAnalysisCache(): Record<string, any> {
   try {
     const stored = typeof window !== "undefined" ? localStorage.getItem(AI_ANALYSIS_CACHE_KEY) : null;
     return stored ? JSON.parse(stored) : {};
@@ -183,7 +184,8 @@ export default function Home() {
   const [isRunning, setIsRunning] = useState(false);
   const [runningTabId, setRunningTabId] = useState<string | null>(null);
   const [lastRunResultId, setLastRunResultId] = useState<string | null>(null);
-  const [analysisCache, setAnalysisCache] = useState<Record<string, object>>(_initAiAnalysisCache);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [analysisCache, setAnalysisCache] = useState<Record<string, any>>(_initAiAnalysisCache);
   const abortControllerRef = useRef<AbortController | null>(null);
   const sidebarRef = useRef<ImperativePanelHandle>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(_initSidebarCollapsed);
