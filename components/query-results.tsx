@@ -497,6 +497,22 @@ function ColumnFilterPopover({
     onFilterChange({ op: currentOp, value: "", value2: curVal2, values: next });
   };
 
+  const allFilteredSelected =
+    filteredDistinctValues.length > 0 &&
+    filteredDistinctValues.every((v) => curValues.includes(v));
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      // deselect only the filtered ones
+      const next = curValues.filter((v) => !filteredDistinctValues.includes(v));
+      onFilterChange({ op: currentOp, value: "", value2: curVal2, values: next });
+    } else {
+      // add all filtered ones (union)
+      const next = [...new Set([...curValues, ...filteredDistinctValues])];
+      onFilterChange({ op: currentOp, value: "", value2: curVal2, values: next });
+    }
+  };
+
   const inputCls = "block w-full h-7 text-xs bg-muted/40 border border-border rounded px-2 focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/40";
 
   return (
@@ -548,27 +564,29 @@ function ColumnFilterPopover({
           {needsValue && (
             showDistinctSelect && distinctValues.length > 0 ? (
               <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between gap-1">
-                  <input
-                    autoFocus
-                    type="text"
-                    value={distinctSearch}
-                    onChange={(e) => setDistinctSearch(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
-                    placeholder="Search values…"
-                    className={cn(inputCls, "flex-1")}
-                  />
-                  {curValues.length > 0 && (
-                    <span className="text-[10px] text-primary font-medium shrink-0">
-                      {curValues.length} selected
-                    </span>
-                  )}
-                </div>
+                <input
+                  autoFocus
+                  type="text"
+                  value={distinctSearch}
+                  onChange={(e) => setDistinctSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
+                  placeholder="Search values…"
+                  className={inputCls}
+                />
                 <div className="max-h-40 overflow-y-auto rounded border border-border bg-muted/20 flex flex-col">
                   {filteredDistinctValues.length === 0 ? (
                     <p className="text-[11px] text-muted-foreground px-2 py-1.5">No matches</p>
                   ) : (
-                    filteredDistinctValues.map((v) => (
+                    <>
+                      <label className="flex items-center gap-2 px-2 py-1 hover:bg-accent transition-colors cursor-pointer border-b border-border/50">
+                        <Checkbox
+                          checked={allFilteredSelected}
+                          onChange={toggleSelectAll}
+                          className="shrink-0"
+                        />
+                        <span className="text-xs text-muted-foreground font-medium">Select All</span>
+                      </label>
+                    {filteredDistinctValues.map((v) => (
                       <label
                         key={v}
                         className={cn(
@@ -583,7 +601,8 @@ function ColumnFilterPopover({
                         />
                         <span className="text-xs text-foreground break-words">{v}</span>
                       </label>
-                    ))
+                    ))}
+                    </>
                   )}
                 </div>
               </div>
@@ -612,14 +631,23 @@ function ColumnFilterPopover({
             />
           )}
 
-          {/* Clear */}
-          {isActive && (
-            <button
-              onClick={() => { onFilterChange(null); setDistinctSearch(""); setOpen(false); }}
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors border-t border-border/50 pt-1.5 mt-0.5"
-            >
-              <X className="h-3 w-3" /> Clear filter
-            </button>
+          {/* Clear / selected count */}
+          {(isActive || curValues.length > 0) && (
+            <div className="flex items-center justify-between border-t border-border/50 pt-1.5 mt-0.5">
+              {curValues.length > 0 && (
+                <span className="text-[11px] text-foreground">
+                  {curValues.length} selected
+                </span>
+              )}
+              {isActive && (
+                <button
+                  onClick={() => { onFilterChange(null); setDistinctSearch(""); setOpen(false); }}
+                  className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors ml-auto"
+                >
+                  <X className="h-3 w-3" /> Clear filter
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}

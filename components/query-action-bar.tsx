@@ -13,7 +13,7 @@ import {
   PieChart,
   Clock,
   Rows2,
-  X,
+  FilterX,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -204,7 +204,7 @@ export function QueryActionBar({
                 onClick={onClearFilters}
                 className="h-6 w-6 rounded flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
               >
-                <X className="h-3.5 w-3.5" />
+                <FilterX className="h-3.5 w-3.5" />
               </button>
             </TooltipTrigger>
             <TooltipContent>Clear filters</TooltipContent>
