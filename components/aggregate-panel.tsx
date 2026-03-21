@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useCallback } from "react";
-import { ChevronDown, GripVertical, ArrowUpDown } from "lucide-react";
+import { ChevronDown, GripVertical, ArrowUpDown, Calendar } from "lucide-react";
 import { QueryResult, QueryField } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -62,6 +62,43 @@ function smartValueDefault(fields: QueryField[]): string {
   return num?.name ?? fields[0]?.name ?? "";
 }
 
+// ─── Date granularity ─────────────────────────────────────────────────────────
+
+type DateGranularity = "day" | "week" | "month" | "quarter" | "year";
+
+const DATE_GRANULARITIES: { value: DateGranularity; label: string; short: string }[] = [
+  { value: "day",     label: "Day",     short: "D" },
+  { value: "week",    label: "Week",    short: "W" },
+  { value: "month",   label: "Month",   short: "M" },
+  { value: "quarter", label: "Quarter", short: "Q" },
+  { value: "year",    label: "Year",    short: "Y" },
+];
+
+function truncateDate(val: unknown, granularity: DateGranularity): string {
+  if (val == null || val === "") return "(null)";
+  const d = new Date(String(val));
+  if (isNaN(d.getTime())) return String(val);
+  switch (granularity) {
+    case "day":
+      return d.toISOString().slice(0, 10);
+    case "week": {
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(d);
+      monday.setDate(diff);
+      return monday.toISOString().slice(0, 10);
+    }
+    case "month":
+      return d.toISOString().slice(0, 7);
+    case "quarter": {
+      const q = Math.floor(d.getMonth() / 3) + 1;
+      return `${d.getFullYear()}-Q${q}`;
+    }
+    case "year":
+      return String(d.getFullYear());
+  }
+}
+
 // ─── Aggregate computation ────────────────────────────────────────────────────
 
 type AggFunc = "COUNT" | "SUM" | "AVG" | "MIN" | "MAX" | "COUNT_DISTINCT";
@@ -71,12 +108,18 @@ function computeAggregate(
   rows: Record<string, unknown>[],
   groupByField: string | null,
   aggFunc: AggFunc,
-  valueField: string | null
+  valueField: string | null,
+  isDateField?: boolean,
+  dateGranularity?: DateGranularity
 ): { group: string; value: number | string }[] {
   if (!rows.length) return [];
   const groups = new Map<string, Record<string, unknown>[]>();
   for (const row of rows) {
-    const key = groupByField ? String(row[groupByField] ?? "(null)") : "(all)";
+    const key = groupByField
+      ? (isDateField && dateGranularity
+          ? truncateDate(row[groupByField], dateGranularity)
+          : String(row[groupByField] ?? "(null)"))
+      : "(all)";
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(row);
   }
@@ -387,7 +430,11 @@ export function AggregatePanel({ result, view, onViewChange, fullWidth = false }
   const [valueField, setValueField] = useState(() => smartValueDefault(fields));
   const [sortBy, setSortBy] = useState<"group" | "value">("value");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [dateGranularity, setDateGranularity] = useState<DateGranularity>("month");
   const [width, setWidth] = useState(DEFAULT_WIDTH);
+
+  const groupByFieldObj = fields.find((f) => f.name === groupByField);
+  const isDateGroupBy = groupByFieldObj ? typeInfo(groupByFieldObj).category === "date" : false;
 
   const isDragging = useRef(false);
   const dragStartX = useRef(0);
@@ -422,7 +469,9 @@ export function AggregatePanel({ result, view, onViewChange, fullWidth = false }
       result.rows,
       groupByField || null,
       aggFunc,
-      needsValueField ? valueField || null : null
+      needsValueField ? valueField || null : null,
+      isDateGroupBy,
+      isDateGroupBy ? dateGranularity : undefined
     );
     return [...raw].sort((a, b) => {
       const cmp =
@@ -431,7 +480,7 @@ export function AggregatePanel({ result, view, onViewChange, fullWidth = false }
           : Number(a.value) - Number(b.value);
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [result.rows, groupByField, aggFunc, valueField, needsValueField, sortBy, sortDir]);
+  }, [result.rows, groupByField, aggFunc, valueField, needsValueField, sortBy, sortDir, isDateGroupBy, dateGranularity]);
 
   const colAggLabel = aggLabel(aggFunc, needsValueField ? valueField : null);
 
@@ -483,6 +532,35 @@ export function AggregatePanel({ result, view, onViewChange, fullWidth = false }
             })}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Date granularity — only shown when group-by field is a date type */}
+        {isDateGroupBy && (
+          <>
+            <div className="w-px h-3.5 bg-border shrink-0" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors shrink-0">
+                  <Calendar className="h-3 w-3 shrink-0 opacity-70" />
+                  <span>{DATE_GRANULARITIES.find((g) => g.value === dateGranularity)?.short}</span>
+                  <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel className="text-[10px]">Date grouping</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {DATE_GRANULARITIES.map(({ value, label }) => (
+                  <DropdownMenuItem
+                    key={value}
+                    className={cn("text-xs", dateGranularity === value && "bg-accent")}
+                    onSelect={() => setDateGranularity(value)}
+                  >
+                    {label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        )}
 
         <div className="w-px h-3.5 bg-border shrink-0" />
 
